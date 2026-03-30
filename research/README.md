@@ -1,5 +1,52 @@
 # Snapmaker U1 Klipper Fork — Research Index
 
+## Analyses
+
+### MCU C Source Analysis (AT32)
+
+**Directory:** [`/research/mcu/`](mcu/)
+
+Documents the AT32F403A/AT32F415RC MCU implementation that is disguised as STM32 variants within the Klipper build system. The AT32F403A (240 MHz, main board) masquerades as `stm32f103xe`; the AT32F415RC (144 MHz, extruder heads) masquerades as `stm32f105xc`.
+
+**Scope:**
+- 7 new files in `src/stm32/` (1,731 lines): clock setup, ACC calibration, inductance coil probing, power loss recovery
+- 7 modified files in `src/stm32/`: CAN, SPI, serial, USB, and clock init conditionals for AT32
+- 2 full HAL libraries (`lib/at32f403a/`, `lib/at32f415/`): ~103,500 lines from official Artery SDK
+- Build system changes: Kconfig entries, Makefile source lists, compiler flags
+- Python-C cross-reference: new MCU commands for U1 hardware features
+
+**Key documents:**
+- [Summary Report](mcu/README.md)
+- [Architecture Overview](mcu/architecture-overview.md)
+- [Upstream Contribution Path](mcu/upstream-path.md)
+
+**Raw diffs:** [`/research/raw/mcu-*.diff`](raw/)
+
+---
+
+## Raw Diffs
+
+All raw diffs are stored in [`/research/raw/`](raw/) with descriptive prefixes:
+
+| File | Scope | Lines |
+|------|-------|------:|
+| `full.diff` | Complete unified diff | ~2 MB |
+| `klippy.diff` | `klippy/` directory diff | — |
+| `klippy-extras.diff` | `klippy/extras/` diff | — |
+| `klippy-kinematics.diff` | kinematics diff | — |
+| `klippy-chelper.diff` | chelper C code diff | — |
+| `scripts.diff` | `scripts/` diff | — |
+| `config.diff` | `config/` diff | — |
+| `root-files.diff` | Root Makefile/README diff | — |
+| `name-status.txt` | File manifest (all changed/added/removed) | — |
+| `mcu-src-stm32.diff` | `src/stm32/` changes | 2,309 |
+| `mcu-lib-at32f403a.diff` | `lib/at32f403a/` (full library) | 51,919 |
+| `mcu-lib-at32f415.diff` | `lib/at32f415/` (full library) | 54,668 |
+| `mcu-build.diff` | Makefile, Kconfig, scripts/ | 130 |
+| `mcu-name-status.diff` | File manifest for `src/` and `lib/` | 286 |
+
+---
+
 ## Fork Identity
 
 | Field | Value |
@@ -100,6 +147,11 @@ The fork diverges from upstream in four independent dimensions:
 - [`research/raw/config.diff`](raw/config.diff) — config/ diff
 - [`research/raw/root-files.diff`](raw/root-files.diff) — Root Makefile/README diff
 - [`research/raw/name-status.txt`](raw/name-status.txt) — File manifest (all changed/added/removed)
+- [`research/raw/mcu-src-stm32.diff`](raw/mcu-src-stm32.diff) — src/stm32/ changes
+- [`research/raw/mcu-lib-at32f403a.diff`](raw/mcu-lib-at32f403a.diff) — lib/at32f403a/ (full library)
+- [`research/raw/mcu-lib-at32f415.diff`](raw/mcu-lib-at32f415.diff) — lib/at32f415/ (full library)
+- [`research/raw/mcu-build.diff`](raw/mcu-build.diff) — Makefile, Kconfig, scripts/
+- [`research/raw/mcu-name-status.diff`](raw/mcu-name-status.diff) — File manifest for src/ and lib/
 
 ### Module Documentation
 
@@ -192,12 +244,20 @@ The fork diverges from upstream in four independent dimensions:
 |------|---------|
 | [hardware-libs.md](modules/hardware-libs.md) | `lib/at32f403a/` + `lib/at32f415/` HAL libraries |
 
+#### MCU Analysis
+| File | Coverage |
+|------|---------|
+| [mcu/README.md](mcu/README.md) | AT32 MCU summary report |
+| [mcu/architecture-overview.md](mcu/architecture-overview.md) | Disguise mechanism, clock topology, build system integration |
+| [mcu/upstream-path.md](mcu/upstream-path.md) | Upstream contributability assessment |
+
 #### Configuration
 | File | Coverage |
 |------|---------|
 | [lava-directory.md](modules/lava-directory.md) | Complete `lava/` production config; MCU configs; calibration macros |
 | [config-changes.md](modules/config-changes.md) | Minor upstream config divergences; missing files |
 | [scripts-changes.md](modules/scripts-changes.md) | `buildcommands.py`, `calibrate_shaper.py`, `graph_accelerometer.py` |
+
 ---
 
 ## Triage Results
