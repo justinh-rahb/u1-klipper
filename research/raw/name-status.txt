@@ -1,0 +1,489 @@
+Only in /home/runner/work/u1-klipper/u1-klipper/.github/ISSUE_TEMPLATE: bug_report.yml
+Files /tmp/klipper-upstream/.github/ISSUE_TEMPLATE/config.yml and /home/runner/work/u1-klipper/u1-klipper/.github/ISSUE_TEMPLATE/config.yml differ
+Only in /home/runner/work/u1-klipper/u1-klipper/.github/ISSUE_TEMPLATE: feature_request.yml
+Files /tmp/klipper-upstream/.github/workflows/build-test.yaml and /home/runner/work/u1-klipper/u1-klipper/.github/workflows/build-test.yaml differ
+Files /tmp/klipper-upstream/.github/workflows/klipper3d-deploy.yaml and /home/runner/work/u1-klipper/u1-klipper/.github/workflows/klipper3d-deploy.yaml differ
+Files /tmp/klipper-upstream/.gitignore and /home/runner/work/u1-klipper/u1-klipper/.gitignore differ
+Files /tmp/klipper-upstream/README.md and /home/runner/work/u1-klipper/u1-klipper/README.md differ
+Only in /tmp/klipper-upstream/config: example-generic-caretesian.cfg
+Files /tmp/klipper-upstream/config/generic-bigtreetech-manta-e3ez.cfg and /home/runner/work/u1-klipper/u1-klipper/config/generic-bigtreetech-manta-e3ez.cfg differ
+Files /tmp/klipper-upstream/config/generic-bigtreetech-manta-m8p-v1.0.cfg and /home/runner/work/u1-klipper/u1-klipper/config/generic-bigtreetech-manta-m8p-v1.0.cfg differ
+Files /tmp/klipper-upstream/config/generic-bigtreetech-manta-m8p-v1.1.cfg and /home/runner/work/u1-klipper/u1-klipper/config/generic-bigtreetech-manta-m8p-v1.1.cfg differ
+Files /tmp/klipper-upstream/config/generic-bigtreetech-octopus-max-ez.cfg and /home/runner/work/u1-klipper/u1-klipper/config/generic-bigtreetech-octopus-max-ez.cfg differ
+Files /tmp/klipper-upstream/config/generic-bigtreetech-octopus-v1.1.cfg and /home/runner/work/u1-klipper/u1-klipper/config/generic-bigtreetech-octopus-v1.1.cfg differ
+Files /tmp/klipper-upstream/config/generic-bigtreetech-skr-2.cfg and /home/runner/work/u1-klipper/u1-klipper/config/generic-bigtreetech-skr-2.cfg differ
+Files /tmp/klipper-upstream/config/generic-bigtreetech-skr-mini-e3-v3.0.cfg and /home/runner/work/u1-klipper/u1-klipper/config/generic-bigtreetech-skr-mini-e3-v3.0.cfg differ
+Files /tmp/klipper-upstream/config/generic-bigtreetech-skr-mini-mz.cfg and /home/runner/work/u1-klipper/u1-klipper/config/generic-bigtreetech-skr-mini-mz.cfg differ
+Files /tmp/klipper-upstream/config/generic-creality-v4.2.7.cfg and /home/runner/work/u1-klipper/u1-klipper/config/generic-creality-v4.2.7.cfg differ
+Only in /tmp/klipper-upstream/config: generic-mellow-fly-e3-v2.cfg
+Files /tmp/klipper-upstream/config/generic-mightyboard.cfg and /home/runner/work/u1-klipper/u1-klipper/config/generic-mightyboard.cfg differ
+Files /tmp/klipper-upstream/config/kit-voron2-250mm.cfg and /home/runner/work/u1-klipper/u1-klipper/config/kit-voron2-250mm.cfg differ
+Files /tmp/klipper-upstream/config/kit-zav3d-2019.cfg and /home/runner/work/u1-klipper/u1-klipper/config/kit-zav3d-2019.cfg differ
+Files /tmp/klipper-upstream/config/printer-anycubic-kossel-2016.cfg and /home/runner/work/u1-klipper/u1-klipper/config/printer-anycubic-kossel-2016.cfg differ
+Files /tmp/klipper-upstream/config/printer-creality-cr10-v3-2020.cfg and /home/runner/work/u1-klipper/u1-klipper/config/printer-creality-cr10-v3-2020.cfg differ
+Files /tmp/klipper-upstream/config/printer-creality-cr6se-2020.cfg and /home/runner/work/u1-klipper/u1-klipper/config/printer-creality-cr6se-2020.cfg differ
+Files /tmp/klipper-upstream/config/printer-creality-cr6se-2021.cfg and /home/runner/work/u1-klipper/u1-klipper/config/printer-creality-cr6se-2021.cfg differ
+Files /tmp/klipper-upstream/config/printer-creality-ender5-s1-2023.cfg and /home/runner/work/u1-klipper/u1-klipper/config/printer-creality-ender5-s1-2023.cfg differ
+Files /tmp/klipper-upstream/config/printer-creality-ender5pro-2020.cfg and /home/runner/work/u1-klipper/u1-klipper/config/printer-creality-ender5pro-2020.cfg differ
+Files /tmp/klipper-upstream/config/printer-flashforge-creator-pro-2018.cfg and /home/runner/work/u1-klipper/u1-klipper/config/printer-flashforge-creator-pro-2018.cfg differ
+Only in /tmp/klipper-upstream/config: printer-geeetech-A10T-A20T-2021.cfg
+Files /tmp/klipper-upstream/config/printer-lulzbot-mini1-2016.cfg and /home/runner/work/u1-klipper/u1-klipper/config/printer-lulzbot-mini1-2016.cfg differ
+Files /tmp/klipper-upstream/config/printer-lulzbot-taz6-dual-v3-2017.cfg and /home/runner/work/u1-klipper/u1-klipper/config/printer-lulzbot-taz6-dual-v3-2017.cfg differ
+Files /tmp/klipper-upstream/config/printer-robo3d-r2-2017.cfg and /home/runner/work/u1-klipper/u1-klipper/config/printer-robo3d-r2-2017.cfg differ
+Files /tmp/klipper-upstream/config/printer-seemecnc-rostock-max-v2-2015.cfg and /home/runner/work/u1-klipper/u1-klipper/config/printer-seemecnc-rostock-max-v2-2015.cfg differ
+Files /tmp/klipper-upstream/config/sample-bigtreetech-ebb-canbus-v1.1.cfg and /home/runner/work/u1-klipper/u1-klipper/config/sample-bigtreetech-ebb-canbus-v1.1.cfg differ
+Files /tmp/klipper-upstream/config/sample-bigtreetech-ebb-canbus-v1.2.cfg and /home/runner/work/u1-klipper/u1-klipper/config/sample-bigtreetech-ebb-canbus-v1.2.cfg differ
+Files /tmp/klipper-upstream/config/sample-bigtreetech-ebb-sb-canbus-v1.0.cfg and /home/runner/work/u1-klipper/u1-klipper/config/sample-bigtreetech-ebb-sb-canbus-v1.0.cfg differ
+Only in /tmp/klipper-upstream/config: sample-cartographer-v3.cfg
+Only in /tmp/klipper-upstream/config: sample-corexyuv.cfg
+Files /tmp/klipper-upstream/config/sample-duet3-1lc.cfg and /home/runner/work/u1-klipper/u1-klipper/config/sample-duet3-1lc.cfg differ
+Files /tmp/klipper-upstream/config/sample-mmu2s-diy.cfg and /home/runner/work/u1-klipper/u1-klipper/config/sample-mmu2s-diy.cfg differ
+Files /tmp/klipper-upstream/docs/API_Server.md and /home/runner/work/u1-klipper/u1-klipper/docs/API_Server.md differ
+Files /tmp/klipper-upstream/docs/Axis_Twist_Compensation.md and /home/runner/work/u1-klipper/u1-klipper/docs/Axis_Twist_Compensation.md differ
+Files /tmp/klipper-upstream/docs/Bed_Mesh.md and /home/runner/work/u1-klipper/u1-klipper/docs/Bed_Mesh.md differ
+Files /tmp/klipper-upstream/docs/Benchmarks.md and /home/runner/work/u1-klipper/u1-klipper/docs/Benchmarks.md differ
+Files /tmp/klipper-upstream/docs/Bootloaders.md and /home/runner/work/u1-klipper/u1-klipper/docs/Bootloaders.md differ
+Files /tmp/klipper-upstream/docs/CANBUS.md and /home/runner/work/u1-klipper/u1-klipper/docs/CANBUS.md differ
+Files /tmp/klipper-upstream/docs/CANBUS_Troubleshooting.md and /home/runner/work/u1-klipper/u1-klipper/docs/CANBUS_Troubleshooting.md differ
+Files /tmp/klipper-upstream/docs/CONTRIBUTING.md and /home/runner/work/u1-klipper/u1-klipper/docs/CONTRIBUTING.md differ
+Files /tmp/klipper-upstream/docs/Code_Overview.md and /home/runner/work/u1-klipper/u1-klipper/docs/Code_Overview.md differ
+Files /tmp/klipper-upstream/docs/Config_Changes.md and /home/runner/work/u1-klipper/u1-klipper/docs/Config_Changes.md differ
+Files /tmp/klipper-upstream/docs/Config_Reference.md and /home/runner/work/u1-klipper/u1-klipper/docs/Config_Reference.md differ
+Files /tmp/klipper-upstream/docs/Contact.md and /home/runner/work/u1-klipper/u1-klipper/docs/Contact.md differ
+Files /tmp/klipper-upstream/docs/Debugging.md and /home/runner/work/u1-klipper/u1-klipper/docs/Debugging.md differ
+Files /tmp/klipper-upstream/docs/Eddy_Probe.md and /home/runner/work/u1-klipper/u1-klipper/docs/Eddy_Probe.md differ
+Files /tmp/klipper-upstream/docs/FAQ.md and /home/runner/work/u1-klipper/u1-klipper/docs/FAQ.md differ
+Files /tmp/klipper-upstream/docs/Features.md and /home/runner/work/u1-klipper/u1-klipper/docs/Features.md differ
+Files /tmp/klipper-upstream/docs/G-Codes.md and /home/runner/work/u1-klipper/u1-klipper/docs/G-Codes.md differ
+Files /tmp/klipper-upstream/docs/Installation.md and /home/runner/work/u1-klipper/u1-klipper/docs/Installation.md differ
+Only in /tmp/klipper-upstream/docs: Load_Cell.md
+Files /tmp/klipper-upstream/docs/Measuring_Resonances.md and /home/runner/work/u1-klipper/u1-klipper/docs/Measuring_Resonances.md differ
+Only in /tmp/klipper-upstream/docs: OctoPrint.md
+Files /tmp/klipper-upstream/docs/Overview.md and /home/runner/work/u1-klipper/u1-klipper/docs/Overview.md differ
+Files /tmp/klipper-upstream/docs/Pressure_Advance.md and /home/runner/work/u1-klipper/u1-klipper/docs/Pressure_Advance.md differ
+Files /tmp/klipper-upstream/docs/Releases.md and /home/runner/work/u1-klipper/u1-klipper/docs/Releases.md differ
+Files /tmp/klipper-upstream/docs/Resonance_Compensation.md and /home/runner/work/u1-klipper/u1-klipper/docs/Resonance_Compensation.md differ
+Files /tmp/klipper-upstream/docs/Skew_Correction.md and /home/runner/work/u1-klipper/u1-klipper/docs/Skew_Correction.md differ
+Files /tmp/klipper-upstream/docs/Slicers.md and /home/runner/work/u1-klipper/u1-klipper/docs/Slicers.md differ
+Files /tmp/klipper-upstream/docs/Sponsors.md and /home/runner/work/u1-klipper/u1-klipper/docs/Sponsors.md differ
+Files /tmp/klipper-upstream/docs/Status_Reference.md and /home/runner/work/u1-klipper/u1-klipper/docs/Status_Reference.md differ
+Files /tmp/klipper-upstream/docs/TMC_Drivers.md and /home/runner/work/u1-klipper/u1-klipper/docs/TMC_Drivers.md differ
+Files /tmp/klipper-upstream/docs/_klipper3d/README and /home/runner/work/u1-klipper/u1-klipper/docs/_klipper3d/README differ
+Only in /home/runner/work/u1-klipper/u1-klipper/docs/_klipper3d: build-translations.sh
+Only in /tmp/klipper-upstream/docs/_klipper3d: build-website.sh
+Files /tmp/klipper-upstream/docs/_klipper3d/mkdocs-requirements.txt and /home/runner/work/u1-klipper/u1-klipper/docs/_klipper3d/mkdocs-requirements.txt differ
+Files /tmp/klipper-upstream/docs/_klipper3d/mkdocs.yml and /home/runner/work/u1-klipper/u1-klipper/docs/_klipper3d/mkdocs.yml differ
+Only in /tmp/klipper-upstream/docs/img: calibrate-z.png
+Files /tmp/klipper-upstream/docs/img/klipper_pico_menuconfig.png and /home/runner/work/u1-klipper/u1-klipper/docs/img/klipper_pico_menuconfig.png differ
+Files /tmp/klipper-upstream/docs/index.md and /home/runner/work/u1-klipper/u1-klipper/docs/index.md differ
+Only in /home/runner/work/u1-klipper/u1-klipper/klippy/chelper: Makefile
+Files /tmp/klipper-upstream/klippy/chelper/__init__.py and /home/runner/work/u1-klipper/u1-klipper/klippy/chelper/__init__.py differ
+Files /tmp/klipper-upstream/klippy/chelper/itersolve.c and /home/runner/work/u1-klipper/u1-klipper/klippy/chelper/itersolve.c differ
+Files /tmp/klipper-upstream/klippy/chelper/itersolve.h and /home/runner/work/u1-klipper/u1-klipper/klippy/chelper/itersolve.h differ
+Files /tmp/klipper-upstream/klippy/chelper/kin_extruder.c and /home/runner/work/u1-klipper/u1-klipper/klippy/chelper/kin_extruder.c differ
+Only in /tmp/klipper-upstream/klippy/chelper: kin_generic.c
+Files /tmp/klipper-upstream/klippy/chelper/kin_idex.c and /home/runner/work/u1-klipper/u1-klipper/klippy/chelper/kin_idex.c differ
+Files /tmp/klipper-upstream/klippy/chelper/kin_shaper.c and /home/runner/work/u1-klipper/u1-klipper/klippy/chelper/kin_shaper.c differ
+Files /tmp/klipper-upstream/klippy/chelper/list.h and /home/runner/work/u1-klipper/u1-klipper/klippy/chelper/list.h differ
+Files /tmp/klipper-upstream/klippy/chelper/msgblock.c and /home/runner/work/u1-klipper/u1-klipper/klippy/chelper/msgblock.c differ
+Files /tmp/klipper-upstream/klippy/chelper/msgblock.h and /home/runner/work/u1-klipper/u1-klipper/klippy/chelper/msgblock.h differ
+Files /tmp/klipper-upstream/klippy/chelper/pyhelper.c and /home/runner/work/u1-klipper/u1-klipper/klippy/chelper/pyhelper.c differ
+Files /tmp/klipper-upstream/klippy/chelper/pyhelper.h and /home/runner/work/u1-klipper/u1-klipper/klippy/chelper/pyhelper.h differ
+Files /tmp/klipper-upstream/klippy/chelper/serialqueue.c and /home/runner/work/u1-klipper/u1-klipper/klippy/chelper/serialqueue.c differ
+Files /tmp/klipper-upstream/klippy/chelper/serialqueue.h and /home/runner/work/u1-klipper/u1-klipper/klippy/chelper/serialqueue.h differ
+Files /tmp/klipper-upstream/klippy/chelper/stepcompress.c and /home/runner/work/u1-klipper/u1-klipper/klippy/chelper/stepcompress.c differ
+Files /tmp/klipper-upstream/klippy/chelper/stepcompress.h and /home/runner/work/u1-klipper/u1-klipper/klippy/chelper/stepcompress.h differ
+Only in /tmp/klipper-upstream/klippy/chelper: steppersync.c
+Only in /tmp/klipper-upstream/klippy/chelper: steppersync.h
+Files /tmp/klipper-upstream/klippy/chelper/trapq.c and /home/runner/work/u1-klipper/u1-klipper/klippy/chelper/trapq.c differ
+Files /tmp/klipper-upstream/klippy/chelper/trapq.h and /home/runner/work/u1-klipper/u1-klipper/klippy/chelper/trapq.h differ
+Only in /home/runner/work/u1-klipper/u1-klipper/klippy: coded_exception.py
+Files /tmp/klipper-upstream/klippy/configfile.py and /home/runner/work/u1-klipper/u1-klipper/klippy/configfile.py differ
+Only in /home/runner/work/u1-klipper/u1-klipper/klippy: exception_manager.py
+Only in /home/runner/work/u1-klipper/u1-klipper/klippy/extras: adc_current_sensor.py
+Files /tmp/klipper-upstream/klippy/extras/adc_scaled.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/adc_scaled.py differ
+Files /tmp/klipper-upstream/klippy/extras/adc_temperature.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/adc_temperature.py differ
+Only in /tmp/klipper-upstream/klippy/extras: ads1220.py
+Only in /tmp/klipper-upstream/klippy/extras: ads1x1x.py
+Files /tmp/klipper-upstream/klippy/extras/adxl345.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/adxl345.py differ
+Files /tmp/klipper-upstream/klippy/extras/aht10.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/aht10.py differ
+Files /tmp/klipper-upstream/klippy/extras/angle.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/angle.py differ
+Only in /home/runner/work/u1-klipper/u1-klipper/klippy/extras: auto_screws_tilt_adjust.py
+Files /tmp/klipper-upstream/klippy/extras/axis_twist_compensation.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/axis_twist_compensation.py differ
+Files /tmp/klipper-upstream/klippy/extras/bed_mesh.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/bed_mesh.py differ
+Files /tmp/klipper-upstream/klippy/extras/bed_tilt.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/bed_tilt.py differ
+Files /tmp/klipper-upstream/klippy/extras/bltouch.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/bltouch.py differ
+Files /tmp/klipper-upstream/klippy/extras/bme280.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/bme280.py differ
+Only in /tmp/klipper-upstream/klippy/extras: bmi160.py
+Files /tmp/klipper-upstream/klippy/extras/bulk_sensor.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/bulk_sensor.py differ
+Files /tmp/klipper-upstream/klippy/extras/bus.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/bus.py differ
+Files /tmp/klipper-upstream/klippy/extras/buttons.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/buttons.py differ
+Only in /tmp/klipper-upstream/klippy/extras: canbus_stats.py
+Files /tmp/klipper-upstream/klippy/extras/controller_fan.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/controller_fan.py differ
+Only in /home/runner/work/u1-klipper/u1-klipper/klippy/extras: defect_detection.py
+Files /tmp/klipper-upstream/klippy/extras/delta_calibrate.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/delta_calibrate.py differ
+Files /tmp/klipper-upstream/klippy/extras/display/__init__.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/display/__init__.py differ
+Only in /tmp/klipper-upstream/klippy/extras/display: aip31068_spi.py
+Files /tmp/klipper-upstream/klippy/extras/display/display.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/display/display.py differ
+Files /tmp/klipper-upstream/klippy/extras/display/font8x14.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/display/font8x14.py differ
+Files /tmp/klipper-upstream/klippy/extras/display/uc1701.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/display/uc1701.py differ
+Files /tmp/klipper-upstream/klippy/extras/dotstar.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/dotstar.py differ
+Files /tmp/klipper-upstream/klippy/extras/ds18b20.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/ds18b20.py differ
+Files /tmp/klipper-upstream/klippy/extras/endstop_phase.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/endstop_phase.py differ
+Files /tmp/klipper-upstream/klippy/extras/error_mcu.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/error_mcu.py differ
+Files /tmp/klipper-upstream/klippy/extras/exclude_object.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/exclude_object.py differ
+Only in /home/runner/work/u1-klipper/u1-klipper/klippy/extras: extruder_calibration.py
+Only in /home/runner/work/u1-klipper/u1-klipper/klippy/extras: extruder_config_bak.py
+Files /tmp/klipper-upstream/klippy/extras/extruder_stepper.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/extruder_stepper.py differ
+Files /tmp/klipper-upstream/klippy/extras/fan.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/fan.py differ
+Files /tmp/klipper-upstream/klippy/extras/fan_generic.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/fan_generic.py differ
+Only in /home/runner/work/u1-klipper/u1-klipper/klippy/extras: filament_detect.py
+Only in /home/runner/work/u1-klipper/u1-klipper/klippy/extras: filament_entangle_detect.py
+Only in /home/runner/work/u1-klipper/u1-klipper/klippy/extras: filament_feed.py
+Only in /home/runner/work/u1-klipper/u1-klipper/klippy/extras: filament_feed_fac_test.py
+Files /tmp/klipper-upstream/klippy/extras/filament_motion_sensor.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/filament_motion_sensor.py differ
+Only in /home/runner/work/u1-klipper/u1-klipper/klippy/extras: filament_parameters.py
+Only in /home/runner/work/u1-klipper/u1-klipper/klippy/extras: filament_protocol.py
+Files /tmp/klipper-upstream/klippy/extras/filament_switch_sensor.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/filament_switch_sensor.py differ
+Files /tmp/klipper-upstream/klippy/extras/firmware_retraction.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/firmware_retraction.py differ
+Only in /home/runner/work/u1-klipper/u1-klipper/klippy/extras: flow_calibrator.py
+Only in /home/runner/work/u1-klipper/u1-klipper/klippy/extras: fm175xx_reader.py
+Files /tmp/klipper-upstream/klippy/extras/force_move.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/force_move.py differ
+Only in /tmp/klipper-upstream/klippy/extras: garbage_collection.py
+Files /tmp/klipper-upstream/klippy/extras/gcode_arcs.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/gcode_arcs.py differ
+Files /tmp/klipper-upstream/klippy/extras/gcode_button.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/gcode_button.py differ
+Files /tmp/klipper-upstream/klippy/extras/gcode_macro.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/gcode_macro.py differ
+Files /tmp/klipper-upstream/klippy/extras/gcode_move.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/gcode_move.py differ
+Files /tmp/klipper-upstream/klippy/extras/hall_filament_width_sensor.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/hall_filament_width_sensor.py differ
+Files /tmp/klipper-upstream/klippy/extras/heater_bed.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/heater_bed.py differ
+Files /tmp/klipper-upstream/klippy/extras/heater_fan.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/heater_fan.py differ
+Files /tmp/klipper-upstream/klippy/extras/heaters.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/heaters.py differ
+Files /tmp/klipper-upstream/klippy/extras/homing.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/homing.py differ
+Files /tmp/klipper-upstream/klippy/extras/homing_override.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/homing_override.py differ
+Only in /home/runner/work/u1-klipper/u1-klipper/klippy/extras: homing_precise_corexy.py
+Only in /home/runner/work/u1-klipper/u1-klipper/klippy/extras: homing_xyz_override.py
+Files /tmp/klipper-upstream/klippy/extras/htu21d.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/htu21d.py differ
+Only in /tmp/klipper-upstream/klippy/extras: hx71x.py
+Only in /tmp/klipper-upstream/klippy/extras: icm20948.py
+Files /tmp/klipper-upstream/klippy/extras/idle_timeout.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/idle_timeout.py differ
+Only in /home/runner/work/u1-klipper/u1-klipper/klippy/extras: inductance_coil.py
+Files /tmp/klipper-upstream/klippy/extras/input_shaper.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/input_shaper.py differ
+Only in /home/runner/work/u1-klipper/u1-klipper/klippy/extras: jsonrpc.py
+Files /tmp/klipper-upstream/klippy/extras/ldc1612.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/ldc1612.py differ
+Files /tmp/klipper-upstream/klippy/extras/led.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/led.py differ
+Files /tmp/klipper-upstream/klippy/extras/lis2dw.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/lis2dw.py differ
+Only in /tmp/klipper-upstream/klippy/extras: lis3dh.py
+Only in /tmp/klipper-upstream/klippy/extras: load_cell.py
+Only in /tmp/klipper-upstream/klippy/extras: load_cell_probe.py
+Only in /home/runner/work/u1-klipper/u1-klipper/klippy/extras: machine_state_manager.py
+Files /tmp/klipper-upstream/klippy/extras/manual_probe.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/manual_probe.py differ
+Files /tmp/klipper-upstream/klippy/extras/manual_stepper.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/manual_stepper.py differ
+Files /tmp/klipper-upstream/klippy/extras/mcp4018.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/mcp4018.py differ
+Only in /tmp/klipper-upstream/klippy/extras: motion_queuing.py
+Files /tmp/klipper-upstream/klippy/extras/motion_report.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/motion_report.py differ
+Only in /home/runner/work/u1-klipper/u1-klipper/klippy/extras: mqtt.py
+Files /tmp/klipper-upstream/klippy/extras/multi_pin.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/multi_pin.py differ
+Files /tmp/klipper-upstream/klippy/extras/neopixel.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/neopixel.py differ
+Files /tmp/klipper-upstream/klippy/extras/output_pin.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/output_pin.py differ
+Files /tmp/klipper-upstream/klippy/extras/palette2.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/palette2.py differ
+Only in /home/runner/work/u1-klipper/u1-klipper/klippy/extras: park_detector.py
+Files /tmp/klipper-upstream/klippy/extras/pause_resume.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/pause_resume.py differ
+Files /tmp/klipper-upstream/klippy/extras/pca9533.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/pca9533.py differ
+Files /tmp/klipper-upstream/klippy/extras/pca9632.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/pca9632.py differ
+Files /tmp/klipper-upstream/klippy/extras/pid_calibrate.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/pid_calibrate.py differ
+Only in /home/runner/work/u1-klipper/u1-klipper/klippy/extras: power_loss_check.py
+Files /tmp/klipper-upstream/klippy/extras/print_stats.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/print_stats.py differ
+Only in /home/runner/work/u1-klipper/u1-klipper/klippy/extras: print_task_config.py
+Files /tmp/klipper-upstream/klippy/extras/probe.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/probe.py differ
+Files /tmp/klipper-upstream/klippy/extras/probe_eddy_current.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/probe_eddy_current.py differ
+Only in /home/runner/work/u1-klipper/u1-klipper/klippy/extras: probe_inductance_coil.py
+Files /tmp/klipper-upstream/klippy/extras/pulse_counter.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/pulse_counter.py differ
+Only in /home/runner/work/u1-klipper/u1-klipper/klippy/extras: purifier.py
+Files /tmp/klipper-upstream/klippy/extras/pwm_cycle_time.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/pwm_cycle_time.py differ
+Files /tmp/klipper-upstream/klippy/extras/pwm_tool.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/pwm_tool.py differ
+Files /tmp/klipper-upstream/klippy/extras/quad_gantry_level.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/quad_gantry_level.py differ
+Files /tmp/klipper-upstream/klippy/extras/query_adc.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/query_adc.py differ
+Files /tmp/klipper-upstream/klippy/extras/replicape.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/replicape.py differ
+Files /tmp/klipper-upstream/klippy/extras/resonance_tester.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/resonance_tester.py differ
+Files /tmp/klipper-upstream/klippy/extras/safe_z_home.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/safe_z_home.py differ
+Files /tmp/klipper-upstream/klippy/extras/save_variables.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/save_variables.py differ
+Files /tmp/klipper-upstream/klippy/extras/screws_tilt_adjust.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/screws_tilt_adjust.py differ
+Files /tmp/klipper-upstream/klippy/extras/servo.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/servo.py differ
+Only in /home/runner/work/u1-klipper/u1-klipper/klippy/extras: setup.py
+Files /tmp/klipper-upstream/klippy/extras/shaper_calibrate.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/shaper_calibrate.py differ
+Files /tmp/klipper-upstream/klippy/extras/shaper_defs.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/shaper_defs.py differ
+Files /tmp/klipper-upstream/klippy/extras/sht3x.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/sht3x.py differ
+Files /tmp/klipper-upstream/klippy/extras/skew_correction.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/skew_correction.py differ
+Files /tmp/klipper-upstream/klippy/extras/smart_effector.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/smart_effector.py differ
+Files /tmp/klipper-upstream/klippy/extras/spi_temperature.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/spi_temperature.py differ
+Only in /tmp/klipper-upstream/klippy/extras: static_pwm_clock.py
+Files /tmp/klipper-upstream/klippy/extras/statistics.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/statistics.py differ
+Files /tmp/klipper-upstream/klippy/extras/stepper_enable.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/stepper_enable.py differ
+Files /tmp/klipper-upstream/klippy/extras/sx1509.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/sx1509.py differ
+Files /tmp/klipper-upstream/klippy/extras/temperature_combined.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/temperature_combined.py differ
+Files /tmp/klipper-upstream/klippy/extras/temperature_fan.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/temperature_fan.py differ
+Files /tmp/klipper-upstream/klippy/extras/temperature_mcu.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/temperature_mcu.py differ
+Only in /tmp/klipper-upstream/klippy/extras: temperature_probe.py
+Files /tmp/klipper-upstream/klippy/extras/temperature_sensor.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/temperature_sensor.py differ
+Files /tmp/klipper-upstream/klippy/extras/temperature_sensors.cfg and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/temperature_sensors.cfg differ
+Files /tmp/klipper-upstream/klippy/extras/thermistor.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/thermistor.py differ
+Only in /home/runner/work/u1-klipper/u1-klipper/klippy/extras: timelapse.py
+Files /tmp/klipper-upstream/klippy/extras/tmc.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/tmc.py differ
+Files /tmp/klipper-upstream/klippy/extras/tmc2130.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/tmc2130.py differ
+Files /tmp/klipper-upstream/klippy/extras/tmc2208.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/tmc2208.py differ
+Files /tmp/klipper-upstream/klippy/extras/tmc2209.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/tmc2209.py differ
+Files /tmp/klipper-upstream/klippy/extras/tmc2240.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/tmc2240.py differ
+Files /tmp/klipper-upstream/klippy/extras/tmc2660.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/tmc2660.py differ
+Files /tmp/klipper-upstream/klippy/extras/tmc5160.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/tmc5160.py differ
+Files /tmp/klipper-upstream/klippy/extras/tmc_uart.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/tmc_uart.py differ
+Only in /tmp/klipper-upstream/klippy/extras: trigger_analog.py
+Files /tmp/klipper-upstream/klippy/extras/tsl1401cl_filament_width_sensor.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/tsl1401cl_filament_width_sensor.py differ
+Files /tmp/klipper-upstream/klippy/extras/verify_heater.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/verify_heater.py differ
+Files /tmp/klipper-upstream/klippy/extras/virtual_sdcard.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/virtual_sdcard.py differ
+Files /tmp/klipper-upstream/klippy/extras/z_thermal_adjust.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/z_thermal_adjust.py differ
+Files /tmp/klipper-upstream/klippy/extras/z_tilt.py and /home/runner/work/u1-klipper/u1-klipper/klippy/extras/z_tilt.py differ
+Files /tmp/klipper-upstream/klippy/gcode.py and /home/runner/work/u1-klipper/u1-klipper/klippy/gcode.py differ
+Files /tmp/klipper-upstream/klippy/kinematics/cartesian.py and /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/cartesian.py differ
+Files /tmp/klipper-upstream/klippy/kinematics/corexy.py and /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/corexy.py differ
+Files /tmp/klipper-upstream/klippy/kinematics/corexz.py and /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/corexz.py differ
+Files /tmp/klipper-upstream/klippy/kinematics/delta.py and /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/delta.py differ
+Files /tmp/klipper-upstream/klippy/kinematics/deltesian.py and /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/deltesian.py differ
+Files /tmp/klipper-upstream/klippy/kinematics/extruder.py and /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/extruder.py differ
+Only in /tmp/klipper-upstream/klippy/kinematics: generic_cartesian.py
+Files /tmp/klipper-upstream/klippy/kinematics/hybrid_corexy.py and /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/hybrid_corexy.py differ
+Files /tmp/klipper-upstream/klippy/kinematics/hybrid_corexz.py and /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/hybrid_corexz.py differ
+Files /tmp/klipper-upstream/klippy/kinematics/idex_modes.py and /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/idex_modes.py differ
+Only in /tmp/klipper-upstream/klippy/kinematics: kinematic_stepper.py
+Files /tmp/klipper-upstream/klippy/kinematics/none.py and /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/none.py differ
+Files /tmp/klipper-upstream/klippy/kinematics/polar.py and /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/polar.py differ
+Files /tmp/klipper-upstream/klippy/kinematics/rotary_delta.py and /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/rotary_delta.py differ
+Files /tmp/klipper-upstream/klippy/kinematics/winch.py and /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/winch.py differ
+Files /tmp/klipper-upstream/klippy/klippy.py and /home/runner/work/u1-klipper/u1-klipper/klippy/klippy.py differ
+Files /tmp/klipper-upstream/klippy/mathutil.py and /home/runner/work/u1-klipper/u1-klipper/klippy/mathutil.py differ
+Files /tmp/klipper-upstream/klippy/mcu.py and /home/runner/work/u1-klipper/u1-klipper/klippy/mcu.py differ
+Files /tmp/klipper-upstream/klippy/msgproto.py and /home/runner/work/u1-klipper/u1-klipper/klippy/msgproto.py differ
+Files /tmp/klipper-upstream/klippy/pins.py and /home/runner/work/u1-klipper/u1-klipper/klippy/pins.py differ
+Only in /home/runner/work/u1-klipper/u1-klipper/klippy: printer_device_scan.py
+Only in /home/runner/work/u1-klipper/u1-klipper/klippy: queuefile.py
+Files /tmp/klipper-upstream/klippy/queuelogger.py and /home/runner/work/u1-klipper/u1-klipper/klippy/queuelogger.py differ
+Files /tmp/klipper-upstream/klippy/reactor.py and /home/runner/work/u1-klipper/u1-klipper/klippy/reactor.py differ
+Files /tmp/klipper-upstream/klippy/serialhdl.py and /home/runner/work/u1-klipper/u1-klipper/klippy/serialhdl.py differ
+Files /tmp/klipper-upstream/klippy/stepper.py and /home/runner/work/u1-klipper/u1-klipper/klippy/stepper.py differ
+Files /tmp/klipper-upstream/klippy/toolhead.py and /home/runner/work/u1-klipper/u1-klipper/klippy/toolhead.py differ
+Files /tmp/klipper-upstream/klippy/util.py and /home/runner/work/u1-klipper/u1-klipper/klippy/util.py differ
+Files /tmp/klipper-upstream/klippy/webhooks.py and /home/runner/work/u1-klipper/u1-klipper/klippy/webhooks.py differ
+Only in /home/runner/work/u1-klipper/u1-klipper/: lava
+Files /tmp/klipper-upstream/lib/README and /home/runner/work/u1-klipper/u1-klipper/lib/README differ
+Only in /home/runner/work/u1-klipper/u1-klipper/lib: at32f403a
+Only in /home/runner/work/u1-klipper/u1-klipper/lib: at32f415
+Files /tmp/klipper-upstream/lib/can2040/can2040.c and /home/runner/work/u1-klipper/u1-klipper/lib/can2040/can2040.c differ
+Only in /tmp/klipper-upstream/lib/cmsis-core: core_cm33.h
+Only in /tmp/klipper-upstream/lib/cmsis-core: mpu_armv8.h
+Only in /tmp/klipper-upstream/lib: elf2uf2
+Files /tmp/klipper-upstream/lib/fatfs/ffconf.h and /home/runner/work/u1-klipper/u1-klipper/lib/fatfs/ffconf.h differ
+Only in /tmp/klipper-upstream/lib: pico-sdk
+Only in /home/runner/work/u1-klipper/u1-klipper/lib: rp2040
+Files /tmp/klipper-upstream/lib/rp2040_flash/Makefile and /home/runner/work/u1-klipper/u1-klipper/lib/rp2040_flash/Makefile differ
+Only in /tmp/klipper-upstream/lib/rp2040_flash: addresses.h
+Files /tmp/klipper-upstream/lib/rp2040_flash/main.c and /home/runner/work/u1-klipper/u1-klipper/lib/rp2040_flash/main.c differ
+Files /tmp/klipper-upstream/lib/rp2040_flash/picoboot_connection.c and /home/runner/work/u1-klipper/u1-klipper/lib/rp2040_flash/picoboot_connection.c differ
+Files /tmp/klipper-upstream/lib/rp2040_flash/picoboot_connection.h and /home/runner/work/u1-klipper/u1-klipper/lib/rp2040_flash/picoboot_connection.h differ
+Files /tmp/klipper-upstream/lib/stm32f1/system_stm32f1xx.c and /home/runner/work/u1-klipper/u1-klipper/lib/stm32f1/system_stm32f1xx.c differ
+Only in /home/runner/work/u1-klipper/u1-klipper/: research
+Files /tmp/klipper-upstream/scripts/buildcommands.py and /home/runner/work/u1-klipper/u1-klipper/scripts/buildcommands.py differ
+Files /tmp/klipper-upstream/scripts/calibrate_shaper.py and /home/runner/work/u1-klipper/u1-klipper/scripts/calibrate_shaper.py differ
+Only in /tmp/klipper-upstream/scripts: check-software-div.sh
+Files /tmp/klipper-upstream/scripts/ci-build.sh and /home/runner/work/u1-klipper/u1-klipper/scripts/ci-build.sh differ
+Files /tmp/klipper-upstream/scripts/ci-install.sh and /home/runner/work/u1-klipper/u1-klipper/scripts/ci-install.sh differ
+Only in /tmp/klipper-upstream/scripts: filter_workbench.ipynb
+Files /tmp/klipper-upstream/scripts/flash-sdcard.sh and /home/runner/work/u1-klipper/u1-klipper/scripts/flash-sdcard.sh differ
+Files /tmp/klipper-upstream/scripts/flash_usb.py and /home/runner/work/u1-klipper/u1-klipper/scripts/flash_usb.py differ
+Files /tmp/klipper-upstream/scripts/graph_accelerometer.py and /home/runner/work/u1-klipper/u1-klipper/scripts/graph_accelerometer.py differ
+Files /tmp/klipper-upstream/scripts/graph_shaper.py and /home/runner/work/u1-klipper/u1-klipper/scripts/graph_shaper.py differ
+Files /tmp/klipper-upstream/scripts/graphstats.py and /home/runner/work/u1-klipper/u1-klipper/scripts/graphstats.py differ
+Files /tmp/klipper-upstream/scripts/klippy-requirements.txt and /home/runner/work/u1-klipper/u1-klipper/scripts/klippy-requirements.txt differ
+Files /tmp/klipper-upstream/scripts/motan/analyzers.py and /home/runner/work/u1-klipper/u1-klipper/scripts/motan/analyzers.py differ
+Files /tmp/klipper-upstream/scripts/motan/data_logger.py and /home/runner/work/u1-klipper/u1-klipper/scripts/motan/data_logger.py differ
+Files /tmp/klipper-upstream/scripts/motan/readlog.py and /home/runner/work/u1-klipper/u1-klipper/scripts/motan/readlog.py differ
+Files /tmp/klipper-upstream/scripts/spi_flash/board_defs.py and /home/runner/work/u1-klipper/u1-klipper/scripts/spi_flash/board_defs.py differ
+Files /tmp/klipper-upstream/scripts/spi_flash/fatfs_api.h and /home/runner/work/u1-klipper/u1-klipper/scripts/spi_flash/fatfs_api.h differ
+Files /tmp/klipper-upstream/scripts/spi_flash/fatfs_lib.py and /home/runner/work/u1-klipper/u1-klipper/scripts/spi_flash/fatfs_lib.py differ
+Files /tmp/klipper-upstream/scripts/spi_flash/spi_flash.py and /home/runner/work/u1-klipper/u1-klipper/scripts/spi_flash/spi_flash.py differ
+Only in /tmp/klipper-upstream/scripts: tests-requirements.txt
+Files /tmp/klipper-upstream/scripts/update_chitu.py and /home/runner/work/u1-klipper/u1-klipper/scripts/update_chitu.py differ
+Files /tmp/klipper-upstream/scripts/whconsole.py and /home/runner/work/u1-klipper/u1-klipper/scripts/whconsole.py differ
+Files /tmp/klipper-upstream/src/Kconfig and /home/runner/work/u1-klipper/u1-klipper/src/Kconfig differ
+Files /tmp/klipper-upstream/src/Makefile and /home/runner/work/u1-klipper/u1-klipper/src/Makefile differ
+Files /tmp/klipper-upstream/src/adccmds.c and /home/runner/work/u1-klipper/u1-klipper/src/adccmds.c differ
+Files /tmp/klipper-upstream/src/ar100/Kconfig and /home/runner/work/u1-klipper/u1-klipper/src/ar100/Kconfig differ
+Files /tmp/klipper-upstream/src/ar100/Makefile and /home/runner/work/u1-klipper/u1-klipper/src/ar100/Makefile differ
+Files /tmp/klipper-upstream/src/ar100/gpio.h and /home/runner/work/u1-klipper/u1-klipper/src/ar100/gpio.h differ
+Files /tmp/klipper-upstream/src/atsam/Kconfig and /home/runner/work/u1-klipper/u1-klipper/src/atsam/Kconfig differ
+Files /tmp/klipper-upstream/src/atsam/Makefile and /home/runner/work/u1-klipper/u1-klipper/src/atsam/Makefile differ
+Files /tmp/klipper-upstream/src/atsam/fdcan.c and /home/runner/work/u1-klipper/u1-klipper/src/atsam/fdcan.c differ
+Files /tmp/klipper-upstream/src/atsam/gpio.h and /home/runner/work/u1-klipper/u1-klipper/src/atsam/gpio.h differ
+Files /tmp/klipper-upstream/src/atsam/i2c.c and /home/runner/work/u1-klipper/u1-klipper/src/atsam/i2c.c differ
+Files /tmp/klipper-upstream/src/atsam/sam3_usb.c and /home/runner/work/u1-klipper/u1-klipper/src/atsam/sam3_usb.c differ
+Only in /tmp/klipper-upstream/src/atsam: same70_link.lds.S
+Files /tmp/klipper-upstream/src/atsam/same70_sysinit.c and /home/runner/work/u1-klipper/u1-klipper/src/atsam/same70_sysinit.c differ
+Files /tmp/klipper-upstream/src/atsamd/Kconfig and /home/runner/work/u1-klipper/u1-klipper/src/atsamd/Kconfig differ
+Files /tmp/klipper-upstream/src/atsamd/Makefile and /home/runner/work/u1-klipper/u1-klipper/src/atsamd/Makefile differ
+Files /tmp/klipper-upstream/src/atsamd/fdcan.c and /home/runner/work/u1-klipper/u1-klipper/src/atsamd/fdcan.c differ
+Files /tmp/klipper-upstream/src/atsamd/gpio.h and /home/runner/work/u1-klipper/u1-klipper/src/atsamd/gpio.h differ
+Files /tmp/klipper-upstream/src/atsamd/i2c.c and /home/runner/work/u1-klipper/u1-klipper/src/atsamd/i2c.c differ
+Files /tmp/klipper-upstream/src/atsamd/usbserial.c and /home/runner/work/u1-klipper/u1-klipper/src/atsamd/usbserial.c differ
+Files /tmp/klipper-upstream/src/avr/Kconfig and /home/runner/work/u1-klipper/u1-klipper/src/avr/Kconfig differ
+Files /tmp/klipper-upstream/src/avr/Makefile and /home/runner/work/u1-klipper/u1-klipper/src/avr/Makefile differ
+Files /tmp/klipper-upstream/src/avr/adc.c and /home/runner/work/u1-klipper/u1-klipper/src/avr/adc.c differ
+Files /tmp/klipper-upstream/src/avr/gpio.c and /home/runner/work/u1-klipper/u1-klipper/src/avr/gpio.c differ
+Files /tmp/klipper-upstream/src/avr/gpio.h and /home/runner/work/u1-klipper/u1-klipper/src/avr/gpio.h differ
+Files /tmp/klipper-upstream/src/avr/hard_pwm.c and /home/runner/work/u1-klipper/u1-klipper/src/avr/hard_pwm.c differ
+Files /tmp/klipper-upstream/src/avr/i2c.c and /home/runner/work/u1-klipper/u1-klipper/src/avr/i2c.c differ
+Files /tmp/klipper-upstream/src/avr/main.c and /home/runner/work/u1-klipper/u1-klipper/src/avr/main.c differ
+Files /tmp/klipper-upstream/src/avr/spi.c and /home/runner/work/u1-klipper/u1-klipper/src/avr/spi.c differ
+Files /tmp/klipper-upstream/src/avr/timer.c and /home/runner/work/u1-klipper/u1-klipper/src/avr/timer.c differ
+Files /tmp/klipper-upstream/src/basecmd.c and /home/runner/work/u1-klipper/u1-klipper/src/basecmd.c differ
+Files /tmp/klipper-upstream/src/buttons.c and /home/runner/work/u1-klipper/u1-klipper/src/buttons.c differ
+Files /tmp/klipper-upstream/src/command.c and /home/runner/work/u1-klipper/u1-klipper/src/command.c differ
+Files /tmp/klipper-upstream/src/command.h and /home/runner/work/u1-klipper/u1-klipper/src/command.h differ
+Files /tmp/klipper-upstream/src/endstop.c and /home/runner/work/u1-klipper/u1-klipper/src/endstop.c differ
+Files /tmp/klipper-upstream/src/generic/armcm_boot.c and /home/runner/work/u1-klipper/u1-klipper/src/generic/armcm_boot.c differ
+Files /tmp/klipper-upstream/src/generic/armcm_irq.c and /home/runner/work/u1-klipper/u1-klipper/src/generic/armcm_irq.c differ
+Files /tmp/klipper-upstream/src/generic/armcm_reset.c and /home/runner/work/u1-klipper/u1-klipper/src/generic/armcm_reset.c differ
+Files /tmp/klipper-upstream/src/generic/armcm_timer.c and /home/runner/work/u1-klipper/u1-klipper/src/generic/armcm_timer.c differ
+Files /tmp/klipper-upstream/src/generic/canbus.h and /home/runner/work/u1-klipper/u1-klipper/src/generic/canbus.h differ
+Files /tmp/klipper-upstream/src/generic/canserial.c and /home/runner/work/u1-klipper/u1-klipper/src/generic/canserial.c differ
+Files /tmp/klipper-upstream/src/generic/gpio.h and /home/runner/work/u1-klipper/u1-klipper/src/generic/gpio.h differ
+Files /tmp/klipper-upstream/src/generic/timer_irq.c and /home/runner/work/u1-klipper/u1-klipper/src/generic/timer_irq.c differ
+Files /tmp/klipper-upstream/src/generic/usb_canbus.c and /home/runner/work/u1-klipper/u1-klipper/src/generic/usb_canbus.c differ
+Files /tmp/klipper-upstream/src/generic/usb_cdc.c and /home/runner/work/u1-klipper/u1-klipper/src/generic/usb_cdc.c differ
+Files /tmp/klipper-upstream/src/generic/usb_cdc.h and /home/runner/work/u1-klipper/u1-klipper/src/generic/usb_cdc.h differ
+Files /tmp/klipper-upstream/src/generic/usb_cdc_ep.h and /home/runner/work/u1-klipper/u1-klipper/src/generic/usb_cdc_ep.h differ
+Files /tmp/klipper-upstream/src/generic/usbstd.h and /home/runner/work/u1-klipper/u1-klipper/src/generic/usbstd.h differ
+Files /tmp/klipper-upstream/src/hc32f460/Kconfig and /home/runner/work/u1-klipper/u1-klipper/src/hc32f460/Kconfig differ
+Files /tmp/klipper-upstream/src/hc32f460/Makefile and /home/runner/work/u1-klipper/u1-klipper/src/hc32f460/Makefile differ
+Files /tmp/klipper-upstream/src/hc32f460/gpio.h and /home/runner/work/u1-klipper/u1-klipper/src/hc32f460/gpio.h differ
+Files /tmp/klipper-upstream/src/i2c_software.c and /home/runner/work/u1-klipper/u1-klipper/src/i2c_software.c differ
+Files /tmp/klipper-upstream/src/i2c_software.h and /home/runner/work/u1-klipper/u1-klipper/src/i2c_software.h differ
+Files /tmp/klipper-upstream/src/i2ccmds.c and /home/runner/work/u1-klipper/u1-klipper/src/i2ccmds.c differ
+Files /tmp/klipper-upstream/src/i2ccmds.h and /home/runner/work/u1-klipper/u1-klipper/src/i2ccmds.h differ
+Files /tmp/klipper-upstream/src/lcd_hd44780.c and /home/runner/work/u1-klipper/u1-klipper/src/lcd_hd44780.c differ
+Files /tmp/klipper-upstream/src/lcd_st7920.c and /home/runner/work/u1-klipper/u1-klipper/src/lcd_st7920.c differ
+Files /tmp/klipper-upstream/src/linux/console.c and /home/runner/work/u1-klipper/u1-klipper/src/linux/console.c differ
+Files /tmp/klipper-upstream/src/linux/gpio.c and /home/runner/work/u1-klipper/u1-klipper/src/linux/gpio.c differ
+Files /tmp/klipper-upstream/src/linux/gpio.h and /home/runner/work/u1-klipper/u1-klipper/src/linux/gpio.h differ
+Files /tmp/klipper-upstream/src/linux/i2c.c and /home/runner/work/u1-klipper/u1-klipper/src/linux/i2c.c differ
+Files /tmp/klipper-upstream/src/linux/timer.c and /home/runner/work/u1-klipper/u1-klipper/src/linux/timer.c differ
+Files /tmp/klipper-upstream/src/lpc176x/Kconfig and /home/runner/work/u1-klipper/u1-klipper/src/lpc176x/Kconfig differ
+Files /tmp/klipper-upstream/src/lpc176x/Makefile and /home/runner/work/u1-klipper/u1-klipper/src/lpc176x/Makefile differ
+Files /tmp/klipper-upstream/src/lpc176x/gpio.h and /home/runner/work/u1-klipper/u1-klipper/src/lpc176x/gpio.h differ
+Files /tmp/klipper-upstream/src/lpc176x/i2c.c and /home/runner/work/u1-klipper/u1-klipper/src/lpc176x/i2c.c differ
+Files /tmp/klipper-upstream/src/lpc176x/usb_cdc_ep.h and /home/runner/work/u1-klipper/u1-klipper/src/lpc176x/usb_cdc_ep.h differ
+Files /tmp/klipper-upstream/src/neopixel.c and /home/runner/work/u1-klipper/u1-klipper/src/neopixel.c differ
+Files /tmp/klipper-upstream/src/pru/Makefile and /home/runner/work/u1-klipper/u1-klipper/src/pru/Makefile differ
+Files /tmp/klipper-upstream/src/rp2040/Kconfig and /home/runner/work/u1-klipper/u1-klipper/src/rp2040/Kconfig differ
+Files /tmp/klipper-upstream/src/rp2040/Makefile and /home/runner/work/u1-klipper/u1-klipper/src/rp2040/Makefile differ
+Files /tmp/klipper-upstream/src/rp2040/adc.c and /home/runner/work/u1-klipper/u1-klipper/src/rp2040/adc.c differ
+Files /tmp/klipper-upstream/src/rp2040/bootrom.c and /home/runner/work/u1-klipper/u1-klipper/src/rp2040/bootrom.c differ
+Files /tmp/klipper-upstream/src/rp2040/can.c and /home/runner/work/u1-klipper/u1-klipper/src/rp2040/can.c differ
+Files /tmp/klipper-upstream/src/rp2040/chipid.c and /home/runner/work/u1-klipper/u1-klipper/src/rp2040/chipid.c differ
+Files /tmp/klipper-upstream/src/rp2040/gpio.c and /home/runner/work/u1-klipper/u1-klipper/src/rp2040/gpio.c differ
+Files /tmp/klipper-upstream/src/rp2040/gpio.h and /home/runner/work/u1-klipper/u1-klipper/src/rp2040/gpio.h differ
+Files /tmp/klipper-upstream/src/rp2040/hard_pwm.c and /home/runner/work/u1-klipper/u1-klipper/src/rp2040/hard_pwm.c differ
+Files /tmp/klipper-upstream/src/rp2040/i2c.c and /home/runner/work/u1-klipper/u1-klipper/src/rp2040/i2c.c differ
+Files /tmp/klipper-upstream/src/rp2040/internal.h and /home/runner/work/u1-klipper/u1-klipper/src/rp2040/internal.h differ
+Files /tmp/klipper-upstream/src/rp2040/main.c and /home/runner/work/u1-klipper/u1-klipper/src/rp2040/main.c differ
+Only in /home/runner/work/u1-klipper/u1-klipper/src/rp2040: rp2040_link.lds.S
+Only in /tmp/klipper-upstream/src/rp2040: rp2350_bootrom.c
+Only in /tmp/klipper-upstream/src/rp2040: rpxxxx_link.lds.S
+Files /tmp/klipper-upstream/src/rp2040/serial.c and /home/runner/work/u1-klipper/u1-klipper/src/rp2040/serial.c differ
+Files /tmp/klipper-upstream/src/rp2040/spi.c and /home/runner/work/u1-klipper/u1-klipper/src/rp2040/spi.c differ
+Files /tmp/klipper-upstream/src/rp2040/usbserial.c and /home/runner/work/u1-klipper/u1-klipper/src/rp2040/usbserial.c differ
+Files /tmp/klipper-upstream/src/sched.c and /home/runner/work/u1-klipper/u1-klipper/src/sched.c differ
+Files /tmp/klipper-upstream/src/sched.h and /home/runner/work/u1-klipper/u1-klipper/src/sched.h differ
+Only in /tmp/klipper-upstream/src: sensor_ads1220.c
+Files /tmp/klipper-upstream/src/sensor_angle.c and /home/runner/work/u1-klipper/u1-klipper/src/sensor_angle.c differ
+Only in /tmp/klipper-upstream/src: sensor_bmi160.c
+Only in /tmp/klipper-upstream/src: sensor_hx71x.c
+Only in /tmp/klipper-upstream/src: sensor_icm20948.c
+Files /tmp/klipper-upstream/src/sensor_ldc1612.c and /home/runner/work/u1-klipper/u1-klipper/src/sensor_ldc1612.c differ
+Files /tmp/klipper-upstream/src/sensor_lis2dw.c and /home/runner/work/u1-klipper/u1-klipper/src/sensor_lis2dw.c differ
+Files /tmp/klipper-upstream/src/sensor_mpu9250.c and /home/runner/work/u1-klipper/u1-klipper/src/sensor_mpu9250.c differ
+Only in /tmp/klipper-upstream/src: sos_filter.c
+Only in /tmp/klipper-upstream/src: sos_filter.h
+Files /tmp/klipper-upstream/src/spi_software.c and /home/runner/work/u1-klipper/u1-klipper/src/spi_software.c differ
+Files /tmp/klipper-upstream/src/stepper.c and /home/runner/work/u1-klipper/u1-klipper/src/stepper.c differ
+Files /tmp/klipper-upstream/src/stepper.h and /home/runner/work/u1-klipper/u1-klipper/src/stepper.h differ
+Files /tmp/klipper-upstream/src/stm32/Kconfig and /home/runner/work/u1-klipper/u1-klipper/src/stm32/Kconfig differ
+Files /tmp/klipper-upstream/src/stm32/Makefile and /home/runner/work/u1-klipper/u1-klipper/src/stm32/Makefile differ
+Only in /home/runner/work/u1-klipper/u1-klipper/src/stm32: at32f403a.c
+Only in /home/runner/work/u1-klipper/u1-klipper/src/stm32: at32f403a.h
+Only in /home/runner/work/u1-klipper/u1-klipper/src/stm32: at32f415rc.c
+Only in /home/runner/work/u1-klipper/u1-klipper/src/stm32: at32f415rc.h
+Files /tmp/klipper-upstream/src/stm32/can.c and /home/runner/work/u1-klipper/u1-klipper/src/stm32/can.c differ
+Files /tmp/klipper-upstream/src/stm32/fdcan.c and /home/runner/work/u1-klipper/u1-klipper/src/stm32/fdcan.c differ
+Files /tmp/klipper-upstream/src/stm32/gpio.c and /home/runner/work/u1-klipper/u1-klipper/src/stm32/gpio.c differ
+Files /tmp/klipper-upstream/src/stm32/gpio.h and /home/runner/work/u1-klipper/u1-klipper/src/stm32/gpio.h differ
+Files /tmp/klipper-upstream/src/stm32/gpioperiph.c and /home/runner/work/u1-klipper/u1-klipper/src/stm32/gpioperiph.c differ
+Files /tmp/klipper-upstream/src/stm32/hard_pwm.c and /home/runner/work/u1-klipper/u1-klipper/src/stm32/hard_pwm.c differ
+Files /tmp/klipper-upstream/src/stm32/i2c.c and /home/runner/work/u1-klipper/u1-klipper/src/stm32/i2c.c differ
+Only in /home/runner/work/u1-klipper/u1-klipper/src/stm32: inductance_coil.c
+Only in /home/runner/work/u1-klipper/u1-klipper/src/stm32: inductance_coil.h
+Files /tmp/klipper-upstream/src/stm32/internal.h and /home/runner/work/u1-klipper/u1-klipper/src/stm32/internal.h differ
+Files /tmp/klipper-upstream/src/stm32/n32g45x_adc.c and /home/runner/work/u1-klipper/u1-klipper/src/stm32/n32g45x_adc.c differ
+Only in /home/runner/work/u1-klipper/u1-klipper/src/stm32: power_loss_check.c
+Files /tmp/klipper-upstream/src/stm32/serial.c and /home/runner/work/u1-klipper/u1-klipper/src/stm32/serial.c differ
+Files /tmp/klipper-upstream/src/stm32/spi.c and /home/runner/work/u1-klipper/u1-klipper/src/stm32/spi.c differ
+Files /tmp/klipper-upstream/src/stm32/stm32f0.c and /home/runner/work/u1-klipper/u1-klipper/src/stm32/stm32f0.c differ
+Files /tmp/klipper-upstream/src/stm32/stm32f0_i2c.c and /home/runner/work/u1-klipper/u1-klipper/src/stm32/stm32f0_i2c.c differ
+Files /tmp/klipper-upstream/src/stm32/stm32f0_serial.c and /home/runner/work/u1-klipper/u1-klipper/src/stm32/stm32f0_serial.c differ
+Files /tmp/klipper-upstream/src/stm32/stm32f1.c and /home/runner/work/u1-klipper/u1-klipper/src/stm32/stm32f1.c differ
+Files /tmp/klipper-upstream/src/stm32/stm32f4.c and /home/runner/work/u1-klipper/u1-klipper/src/stm32/stm32f4.c differ
+Files /tmp/klipper-upstream/src/stm32/stm32f7.c and /home/runner/work/u1-klipper/u1-klipper/src/stm32/stm32f7.c differ
+Files /tmp/klipper-upstream/src/stm32/stm32g0.c and /home/runner/work/u1-klipper/u1-klipper/src/stm32/stm32g0.c differ
+Files /tmp/klipper-upstream/src/stm32/stm32g4.c and /home/runner/work/u1-klipper/u1-klipper/src/stm32/stm32g4.c differ
+Files /tmp/klipper-upstream/src/stm32/stm32h7.c and /home/runner/work/u1-klipper/u1-klipper/src/stm32/stm32h7.c differ
+Files /tmp/klipper-upstream/src/stm32/stm32h7_adc.c and /home/runner/work/u1-klipper/u1-klipper/src/stm32/stm32h7_adc.c differ
+Only in /tmp/klipper-upstream/src/stm32: stm32h7_gpio.c
+Files /tmp/klipper-upstream/src/stm32/stm32h7_spi.c and /home/runner/work/u1-klipper/u1-klipper/src/stm32/stm32h7_spi.c differ
+Files /tmp/klipper-upstream/src/stm32/stm32l4.c and /home/runner/work/u1-klipper/u1-klipper/src/stm32/stm32l4.c differ
+Files /tmp/klipper-upstream/src/stm32/usbfs.c and /home/runner/work/u1-klipper/u1-klipper/src/stm32/usbfs.c differ
+Files /tmp/klipper-upstream/src/stm32/usbotg.c and /home/runner/work/u1-klipper/u1-klipper/src/stm32/usbotg.c differ
+Only in /tmp/klipper-upstream/src: trigger_analog.c
+Only in /tmp/klipper-upstream/src: trigger_analog.h
+Files /tmp/klipper-upstream/src/trsync.c and /home/runner/work/u1-klipper/u1-klipper/src/trsync.c differ
+Files /tmp/klipper-upstream/test/configs/ar100.config and /home/runner/work/u1-klipper/u1-klipper/test/configs/ar100.config differ
+Files /tmp/klipper-upstream/test/configs/atmega328.config and /home/runner/work/u1-klipper/u1-klipper/test/configs/atmega328.config differ
+Only in /tmp/klipper-upstream/test/configs: lgt8f328p.config
+Files /tmp/klipper-upstream/test/configs/pru.config and /home/runner/work/u1-klipper/u1-klipper/test/configs/pru.config differ
+Files /tmp/klipper-upstream/test/configs/rp2040.config and /home/runner/work/u1-klipper/u1-klipper/test/configs/rp2040.config differ
+Only in /tmp/klipper-upstream/test/configs: rp2350.config
+Files /tmp/klipper-upstream/test/configs/stm32f031.config and /home/runner/work/u1-klipper/u1-klipper/test/configs/stm32f031.config differ
+Files /tmp/klipper-upstream/test/configs/stm32f042.config and /home/runner/work/u1-klipper/u1-klipper/test/configs/stm32f042.config differ
+Only in /tmp/klipper-upstream/test/klippy: bed_mesh.cfg
+Only in /tmp/klipper-upstream/test/klippy: bed_mesh.test
+Files /tmp/klipper-upstream/test/klippy/commands.test and /home/runner/work/u1-klipper/u1-klipper/test/klippy/commands.test differ
+Only in /tmp/klipper-upstream/test/klippy: corexyuv.cfg
+Only in /tmp/klipper-upstream/test/klippy: corexyuv.test
+Files /tmp/klipper-upstream/test/klippy/dual_carriage.cfg and /home/runner/work/u1-klipper/u1-klipper/test/klippy/dual_carriage.cfg differ
+Files /tmp/klipper-upstream/test/klippy/dual_carriage.test and /home/runner/work/u1-klipper/u1-klipper/test/klippy/dual_carriage.test differ
+Only in /tmp/klipper-upstream/test/klippy: eddy.cfg
+Only in /tmp/klipper-upstream/test/klippy: eddy.test
+Files /tmp/klipper-upstream/test/klippy/extruders.cfg and /home/runner/work/u1-klipper/u1-klipper/test/klippy/extruders.cfg differ
+Only in /tmp/klipper-upstream/test/klippy: generic_cartesian.cfg
+Only in /tmp/klipper-upstream/test/klippy: generic_cartesian.test
+Only in /tmp/klipper-upstream/test/klippy: generic_cartesian_iqex.cfg
+Only in /tmp/klipper-upstream/test/klippy: generic_cartesian_iqex.test
+Only in /tmp/klipper-upstream/test/klippy: generic_cartesian_itex.cfg
+Only in /tmp/klipper-upstream/test/klippy: generic_cartesian_itex.test
+Files /tmp/klipper-upstream/test/klippy/input_shaper.cfg and /home/runner/work/u1-klipper/u1-klipper/test/klippy/input_shaper.cfg differ
+Files /tmp/klipper-upstream/test/klippy/input_shaper.test and /home/runner/work/u1-klipper/u1-klipper/test/klippy/input_shaper.test differ
+Files /tmp/klipper-upstream/test/klippy/led.cfg and /home/runner/work/u1-klipper/u1-klipper/test/klippy/led.cfg differ
+Only in /tmp/klipper-upstream/test/klippy: load_cell.cfg
+Only in /tmp/klipper-upstream/test/klippy: load_cell.test
+Files /tmp/klipper-upstream/test/klippy/manual_stepper.test and /home/runner/work/u1-klipper/u1-klipper/test/klippy/manual_stepper.test differ
+Files /tmp/klipper-upstream/test/klippy/pressure_advance.cfg and /home/runner/work/u1-klipper/u1-klipper/test/klippy/pressure_advance.cfg differ
+Files /tmp/klipper-upstream/test/klippy/pressure_advance.test and /home/runner/work/u1-klipper/u1-klipper/test/klippy/pressure_advance.test differ
+Files /tmp/klipper-upstream/test/klippy/printers.test and /home/runner/work/u1-klipper/u1-klipper/test/klippy/printers.test differ
+Only in /home/runner/work/u1-klipper/u1-klipper/test/klippy: snapmaker-lava-p1.cfg
+Only in /home/runner/work/u1-klipper/u1-klipper/test/klippy: snapmaker-lava-p1.test
