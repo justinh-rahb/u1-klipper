@@ -198,7 +198,6 @@ The fork diverges from upstream in four independent dimensions:
 | [lava-directory.md](modules/lava-directory.md) | Complete `lava/` production config; MCU configs; calibration macros |
 | [config-changes.md](modules/config-changes.md) | Minor upstream config divergences; missing files |
 | [scripts-changes.md](modules/scripts-changes.md) | `buildcommands.py`, `calibrate_shaper.py`, `graph_accelerometer.py` |
-
 ---
 
 ## Triage Results
