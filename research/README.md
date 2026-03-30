@@ -198,3 +198,41 @@ The fork diverges from upstream in four independent dimensions:
 | [lava-directory.md](modules/lava-directory.md) | Complete `lava/` production config; MCU configs; calibration macros |
 | [config-changes.md](modules/config-changes.md) | Minor upstream config divergences; missing files |
 | [scripts-changes.md](modules/scripts-changes.md) | `buildcommands.py`, `calibrate_shaper.py`, `graph_accelerometer.py` |
+---
+
+## Triage Results
+
+Cross-referenced all 104 documented fork divergences against upstream Klipper
+`HEAD` (`2f05309d`). Full triage report: **[triage/README.md](triage/README.md)**
+
+### Tier Breakdown
+
+| Tier | Label | Count | Description |
+|------|-------|-------|-------------|
+| **1** | **Drop** | 16 | Upstream fully covers this; restore from upstream |
+| **2** | **Adapt** | 14 | Upstream covers the need differently; migrate to upstream approach |
+| **3** | **Layer** | 23 | Upstream partially covers it; maintain a reduced shim |
+| **4** | **Keep** | 51 | No upstream coverage; permanent fork divergence |
+| | **Total** | **104** | |
+
+### Quick Wins (Tier 1)
+16 items can be addressed immediately with low risk:
+- Restore 14 absent upstream extras files (none affect U1 hardware)
+- Restore `chelper/kin_generic.c`
+- Restore `reactor.py::assert_no_pause`
+- Restore `buttons.py::DebounceButton`
+- Restore `stepper_enable.py` mux command pattern
+
+### Permanent Fork Surface (Tier 4 — 51 items)
+The fork must maintain these indefinitely:
+- **PLR system** — Power-loss recovery (no upstream equivalent)
+- **Filament system** — 6 modules for U1's filament routing hardware
+- **AT32 MCU support** — Firmware + HAL libraries for Artery Technology MCUs
+- **Inductive probe** — Frequency-measurement probe architecture
+- **App communication** — MQTT + JSON-RPC + exception system
+- **Multi-extruder** — 4-head tool-change architecture
+
+### Adaptation Documents
+Tier 1 and 2 items have detailed migration paths:
+- [triage/adaptations/](triage/adaptations/) — 13 adaptation documents covering every Drop/Adapt item
+- [triage/inventory.md](triage/inventory.md) — Complete flat inventory of all 104 changes
