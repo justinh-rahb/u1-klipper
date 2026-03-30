@@ -1,0 +1,1985 @@
+diff -ru '--exclude=*.pyc' /tmp/klipper-upstream/scripts/buildcommands.py /home/runner/work/u1-klipper/u1-klipper/scripts/buildcommands.py
+--- /tmp/klipper-upstream/scripts/buildcommands.py	2026-03-30 17:21:22.234104118 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/scripts/buildcommands.py	2026-03-30 17:20:31.516295160 +0000
+@@ -483,22 +483,11 @@
+     logging.debug("Got git version: %s" % (repr(ver),))
+     return ver
+ 
+-# Obtain version info from "klippy/.version" file
+-def file_version():
+-    if not os.path.exists('klippy/.version'):
+-        logging.debug("No 'klippy/.version' file/directory found")
+-        return ""
+-    ver = check_output("cat klippy/.version").strip()
+-    logging.debug("Got klippy version: %s" % (repr(ver),))
+-    return ver
+-
+ def build_version(extra, cleanbuild):
+     version = git_version()
+     if not version:
+         cleanbuild = False
+-        version = file_version()
+-        if not version:
+-            version = "?"
++        version = "?"
+     elif 'dirty' in version:
+         cleanbuild = False
+     if not cleanbuild:
+diff -ru '--exclude=*.pyc' /tmp/klipper-upstream/scripts/calibrate_shaper.py /home/runner/work/u1-klipper/u1-klipper/scripts/calibrate_shaper.py
+--- /tmp/klipper-upstream/scripts/calibrate_shaper.py	2026-03-30 17:21:22.234104118 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/scripts/calibrate_shaper.py	2026-03-30 17:20:31.516295160 +0000
+@@ -1,12 +1,12 @@
+ #!/usr/bin/env python3
+ # Shaper auto-calibration script
+ #
+-# Copyright (C) 2020-2025  Dmitry Butyugin <dmbutyugin@google.com>
++# Copyright (C) 2020-2024  Dmitry Butyugin <dmbutyugin@google.com>
+ # Copyright (C) 2020  Kevin O'Connor <kevin@koconnor.net>
+ #
+ # This file may be distributed under the terms of the GNU GPLv3 license.
+ from __future__ import print_function
+-import csv, importlib, optparse, os, sys
++import importlib, optparse, os, sys
+ from textwrap import wrap
+ import numpy as np, matplotlib
+ sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),
+@@ -20,39 +20,18 @@
+         for header in f:
+             if not header.startswith('#'):
+                 break
+-        if not header.startswith('freq,'):
+-            # Process raw accelerometer data
+-            data = np.loadtxt(logname, comments='#', delimiter=',')
+-            helper = shaper_calibrate.ShaperCalibrate(printer=None)
+-            calibration_data = helper.process_accelerometer_data(logname, data)
+-            calibration_data.normalize_to_frequencies()
+-            return calibration_data
++        if not header.startswith('freq,psd_x,psd_y,psd_z,psd_xyz'):
++            # Raw accelerometer data
++            return np.loadtxt(logname, comments='#', delimiter=',')
+     # Parse power spectral density data
+-    data = np.genfromtxt(logname, dtype=np.float64, skip_header=1,
+-                         comments='#', delimiter=',', filling_values=0.)
+-    if header.startswith('freq,psd_x,psd_y,psd_z,psd_xyz'):
+-        calibration_data = shaper_calibrate.CalibrationData(
+-                name=logname, freq_bins=data[:,0], psd_sum=data[:,4],
+-                psd_x=data[:,1], psd_y=data[:,2], psd_z=data[:,3])
+-        calibration_data.set_numpy(np)
+-    else:
+-        parsed_header = next(csv.reader([header], delimiter=','))
+-        calibration_data = None
+-        for i, dataset_name in enumerate(parsed_header[1:]):
+-            if dataset_name == 'shapers:':
+-                break
+-            cdata = shaper_calibrate.CalibrationData(
+-                    name=dataset_name, freq_bins=data[:,0], psd_sum=data[:,i+1],
+-                    # Individual per-axis data is not stored
+-                    psd_x=None, psd_y=None, psd_z=None)
+-            cdata.set_numpy(np)
+-            if calibration_data is None:
+-                calibration_data = cdata
+-            else:
+-                calibration_data.add_data(cdata)
++    data = np.loadtxt(logname, skiprows=1, comments='#', delimiter=',')
++    calibration_data = shaper_calibrate.CalibrationData(
++            freq_bins=data[:,0], psd_sum=data[:,4],
++            psd_x=data[:,1], psd_y=data[:,2], psd_z=data[:,3])
++    calibration_data.set_numpy(np)
+     # If input shapers are present in the CSV file, the frequency
+     # response is already normalized to input frequencies
+-    if ',shapers:' not in header:
++    if 'mzv' not in header:
+         calibration_data.normalize_to_frequencies()
+     return calibration_data
+ 
+@@ -64,14 +43,19 @@
+ def calibrate_shaper(datas, csv_output, *, shapers, damping_ratio, scv,
+                      shaper_freqs, max_smoothing, test_damping_ratios,
+                      max_freq):
+-    # Combine accelerometer data
+-    calibration_data = datas[0]
+-    for data in datas[1:]:
+-        calibration_data.add_data(data)
+-
+-    print("Processing resonances from %s"
+-          % ",".join(d.name for d in calibration_data.get_datasets()))
+     helper = shaper_calibrate.ShaperCalibrate(printer=None)
++    if isinstance(datas[0], shaper_calibrate.CalibrationData):
++        calibration_data = datas[0]
++        for data in datas[1:]:
++            calibration_data.add_data(data)
++    else:
++        # Process accelerometer data
++        calibration_data = helper.process_accelerometer_data(datas[0])
++        for data in datas[1:]:
++            calibration_data.add_data(helper.process_accelerometer_data(data))
++        calibration_data.normalize_to_frequencies()
++
++
+     shaper, all_shapers = helper.find_best_shaper(
+             calibration_data, shapers=shapers, damping_ratio=damping_ratio,
+             scv=scv, shaper_freqs=shaper_freqs, max_smoothing=max_smoothing,
+@@ -91,48 +75,29 @@
+ # Plot frequency response and suggested input shapers
+ ######################################################################
+ 
+-def plot_freq_response(calibration_data, shapers,
++def plot_freq_response(lognames, calibration_data, shapers,
+                        selected_shaper, max_freq):
+-    selected_shaper_data = [s for s in shapers if s.name == selected_shaper][0]
+-    max_freq_bin = selected_shaper_data.freq_bins.max()
+-    if max_freq > max_freq_bin:
+-        max_freq = max_freq_bin
++    freqs = calibration_data.freq_bins
++    psd = calibration_data.psd_sum[freqs <= max_freq]
++    px = calibration_data.psd_x[freqs <= max_freq]
++    py = calibration_data.psd_y[freqs <= max_freq]
++    pz = calibration_data.psd_z[freqs <= max_freq]
++    freqs = freqs[freqs <= max_freq]
+ 
+     fontP = matplotlib.font_manager.FontProperties()
+     fontP.set_size('x-small')
+ 
+-    fig, ax = matplotlib.pyplot.subplots(figsize=(8, 5))
++    fig, ax = matplotlib.pyplot.subplots()
+     ax.set_xlabel('Frequency, Hz')
+     ax.set_xlim([0, max_freq])
+     ax.set_ylabel('Power spectral density')
+ 
+-    datasets = calibration_data.get_datasets()
+-    if len(datasets) == 1:
+-        freqs = calibration_data.freq_bins
+-        psd = calibration_data.psd_sum[freqs <= max_freq]
+-        px = calibration_data.psd_x[freqs <= max_freq]
+-        py = calibration_data.psd_y[freqs <= max_freq]
+-        pz = calibration_data.psd_z[freqs <= max_freq]
+-        freqs = freqs[freqs <= max_freq]
+-        after_shaper = np.interp(selected_shaper_data.freq_bins, freqs, psd)
+-        ax.plot(freqs, psd, label='X+Y+Z', color='purple')
+-        ax.plot(freqs, px, label='X', color='red')
+-        ax.plot(freqs, py, label='Y', color='green')
+-        ax.plot(freqs, pz, label='Z', color='blue')
+-        title = "Frequency response and shapers (%s)" % calibration_data.name
+-    else:
+-        after_shaper = np.zeros(shape=selected_shaper_data.freq_bins.shape)
+-        for data in datasets:
+-            freqs = data.freq_bins
+-            psd = data.psd_sum[freqs <= max_freq]
+-            freqs = freqs[freqs <= max_freq]
+-            after_shaper = np.maximum(
+-                    after_shaper, np.interp(selected_shaper_data.freq_bins,
+-                                            freqs, psd))
+-            ax.plot(freqs, psd, label=data.name)
+-            title = "Frequency responses and shapers"
+-    after_shaper *= selected_shaper_data.vals
++    ax.plot(freqs, psd, label='X+Y+Z', color='purple')
++    ax.plot(freqs, px, label='X', color='red')
++    ax.plot(freqs, py, label='Y', color='green')
++    ax.plot(freqs, pz, label='Z', color='blue')
+ 
++    title = "Frequency response and shapers (%s)" % (', '.join(lognames))
+     ax.set_title("\n".join(wrap(title, MAX_TITLE_LENGTH)))
+     ax.xaxis.set_minor_locator(matplotlib.ticker.MultipleLocator(5))
+     ax.yaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator())
+@@ -151,11 +116,10 @@
+         linestyle = 'dotted'
+         if shaper.name == selected_shaper:
+             linestyle = 'dashdot'
+-        ax2.plot(shaper.freq_bins, shaper.vals,
+-                 label=label, linestyle=linestyle)
+-    ax.plot(selected_shaper_data.freq_bins, after_shaper,
+-            label='After%sshaper' % ('\n' if len(datasets) == 1 else ' '),
+-            color='cyan')
++            best_shaper_vals = shaper.vals
++        ax2.plot(freqs, shaper.vals, label=label, linestyle=linestyle)
++    ax.plot(freqs, psd * best_shaper_vals,
++            label='After\nshaper', color='cyan')
+     # A hack to add a human-readable shaper recommendation to legend
+     ax2.plot([], [], ' ',
+              label="Recommended shaper: %s" % (selected_shaper.upper()))
+@@ -186,7 +150,7 @@
+                     default=None, help="filename of output graph")
+     opts.add_option("-c", "--csv", type="string", dest="csv",
+                     default=None, help="filename of output csv file")
+-    opts.add_option("-f", "--max_freq", type="float", default=None,
++    opts.add_option("-f", "--max_freq", type="float", default=200.,
+                     help="maximum frequency to plot")
+     opts.add_option("-s", "--max_smoothing", type="float", dest="max_smoothing",
+                     default=None, help="maximum shaper smoothing to allow")
+@@ -202,7 +166,7 @@
+                     default=None, help="shaper damping_ratio parameter")
+     opts.add_option("--test_damping_ratios", type="string",
+                     dest="test_damping_ratios", default=None,
+-                    help="a comma-separated list of damping ratios to test " +
++                    help="a comma-separated liat of damping ratios to test " +
+                     "input shaper for")
+     options, args = opts.parse_args()
+     if len(args) < 1:
+@@ -234,15 +198,13 @@
+             opts.error("--shaper_freq param does not specify correct range " +
+                        "in the format [start]:end[:step]")
+         shaper_freqs = (freq_start, freq_end, freq_step)
+-        if max_freq is not None:
+-            max_freq = max(max_freq, freq_end * 4./3.)
++        max_freq = max(max_freq, freq_end * 4./3.)
+     else:
+         try:
+             shaper_freqs = [float(s) for s in options.shaper_freq.split(',')]
+         except ValueError:
+             opts.error("invalid floating point value in --shaper_freq param")
+-        if max_freq is not None:
+-            max_freq = max(max_freq, max(shaper_freqs) * 4./3.)
++        max_freq = max(max_freq, max(shaper_freqs) * 4./3.)
+     if options.test_damping_ratios:
+         try:
+             test_damping_ratios = [float(s) for s in
+@@ -270,15 +232,12 @@
+             max_freq=max_freq)
+     if selected_shaper is None:
+         return
+-    if max_freq is None:
+-        max_freq = 0.
+-        for data in calibration_data.get_datasets():
+-            max_freq = max(max_freq, data.freq_bins.max())
++
+     if not options.csv or options.output:
+         # Draw graph
+         setup_matplotlib(options.output is not None)
+ 
+-        fig = plot_freq_response(calibration_data, shapers,
++        fig = plot_freq_response(args, calibration_data, shapers,
+                                  selected_shaper, max_freq)
+ 
+         # Show graph
+Only in /tmp/klipper-upstream/scripts/: check-software-div.sh
+diff -ru '--exclude=*.pyc' /tmp/klipper-upstream/scripts/ci-build.sh /home/runner/work/u1-klipper/u1-klipper/scripts/ci-build.sh
+--- /tmp/klipper-upstream/scripts/ci-build.sh	2026-03-30 17:21:22.234173606 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/scripts/ci-build.sh	2026-03-30 17:20:31.516335558 +0000
+@@ -7,8 +7,8 @@
+ # Paths to tools installed by ci-install.sh
+ MAIN_DIR=${PWD}
+ BUILD_DIR=${PWD}/ci_build
+-export PATH=${BUILD_DIR}/pru-elf/bin:${PATH}
+-export PATH=${BUILD_DIR}/or1k-elf/bin:${PATH}
++export PATH=${BUILD_DIR}/pru-gcc/bin:${PATH}
++export PATH=${BUILD_DIR}/or1k-linux-musl-cross/bin:${PATH}
+ PYTHON=${BUILD_DIR}/python-env/bin/python
+ PYTHON2=${BUILD_DIR}/python2-env/bin/python
+ 
+@@ -56,7 +56,6 @@
+     make olddefconfig
+     make V=1
+     size out/*.elf
+-    ./scripts/check-software-div.sh .config out/*.elf
+     finish_test mcu_compile "$TARGET"
+     cp out/klipper.dict ${DICTDIR}/$(basename ${TARGET} .config).dict
+ done
+diff -ru '--exclude=*.pyc' /tmp/klipper-upstream/scripts/ci-install.sh /home/runner/work/u1-klipper/u1-klipper/scripts/ci-install.sh
+--- /tmp/klipper-upstream/scripts/ci-install.sh	2026-03-30 17:21:22.234173606 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/scripts/ci-install.sh	2026-03-30 17:20:31.516335558 +0000
+@@ -19,40 +19,49 @@
+ PKGS="virtualenv python2-dev libffi-dev build-essential"
+ PKGS="${PKGS} gcc-avr avr-libc"
+ PKGS="${PKGS} libnewlib-arm-none-eabi gcc-arm-none-eabi binutils-arm-none-eabi"
+-sudo apt-get update
++PKGS="${PKGS} pv libmpfr-dev libgmp-dev libmpc-dev texinfo bison flex"
+ sudo apt-get install ${PKGS}
+ 
+ 
+ ######################################################################
+-# Install pru gcc
++# Install (or build) pru gcc
+ ######################################################################
+ 
+ echo -e "\n\n=============== Install embedded pru gcc\n\n"
+-PRU_ARCHIVE="pru-elf-2024.05.amd64.tar.xz"
+-PRU_URL="https://github.com/dinuxbg/gnupru/releases/download/2024.05/${PRU_ARCHIVE}"
++PRU_FILE=${CACHE_DIR}/gnupru.tar.gz
++PRU_DIR=${BUILD_DIR}/pru-gcc
+ 
+-if [ ! -f ${CACHE_DIR}/${PRU_ARCHIVE} ]; then
+-    wget "${PRU_URL}" -O "${CACHE_DIR}/${PRU_ARCHIVE}"
++if [ ! -f ${PRU_FILE} ]; then
++    cd ${BUILD_DIR}
++    git config --global user.email "you@example.com"
++    git config --global user.name "Your Name"
++    git clone https://github.com/dinuxbg/gnupru -b 2024.05 --depth 1
++    cd gnupru
++    export PREFIX=${PRU_DIR}
++    ./download-and-prepare.sh 2>&1 | pv -nli 30 > ${BUILD_DIR}/gnupru-build.log
++    ./build.sh 2>&1 | pv -nli 30 >> ${BUILD_DIR}/gnupru-build.log
++    cd ${BUILD_DIR}
++    tar cfz ${PRU_FILE} pru-gcc/
++else
++    cd ${BUILD_DIR}
++    tar xfz ${PRU_FILE}
+ fi
+-cd ${BUILD_DIR}
+-tar xJf ${CACHE_DIR}/${PRU_ARCHIVE}
+-
+ 
+ ######################################################################
+-# Install or1k toolchain
++# Install or1k-linux-musl toolchain
+ ######################################################################
+ 
+-echo -e "\n\n=============== Install or1k toolchain\n\n"
+-OR1K_ARCHIVE="or1k-elf-12.0.1-20220210-20220304.tar.xz"
+-OR1K_REL="or1k-12.0.1-20220210-20220304"
+-OR1K_URL="https://github.com/openrisc/or1k-gcc/releases/download/${OR1K_REL}/${OR1K_ARCHIVE}"
+-if [ ! -f ${CACHE_DIR}/${OR1K_ARCHIVE} ]; then
+-    wget "${OR1K_URL}" -O "${CACHE_DIR}/${OR1K_ARCHIVE}"
++echo -e "\n\n=============== Install or1k-linux-musl toolchain\n\n"
++TOOLCHAIN=or1k-linux-musl-cross
++TOOLCHAIN_ZIP=${TOOLCHAIN}.tgz
++GCC_VERSION=10
++TOOLCHAIN_ZIP_V=${TOOLCHAIN}-${GCC_VERSION}.tgz
++URL=https://more.musl.cc/${GCC_VERSION}/x86_64-linux-musl/
++if [ ! -f ${CACHE_DIR}/${TOOLCHAIN_ZIP_V} ]; then
++    curl ${URL}/${TOOLCHAIN_ZIP} -o ${CACHE_DIR}/${TOOLCHAIN_ZIP_V}
+ fi
+ cd ${BUILD_DIR}
+-tar xJf ${CACHE_DIR}/${OR1K_ARCHIVE}
+-
+-
++tar xf ${CACHE_DIR}/${TOOLCHAIN_ZIP_V}
+ ######################################################################
+ # Create python3 virtualenv environment
+ ######################################################################
+@@ -61,7 +70,6 @@
+ cd ${MAIN_DIR}
+ virtualenv -p python3 ${BUILD_DIR}/python-env
+ ${BUILD_DIR}/python-env/bin/pip install -r ${MAIN_DIR}/scripts/klippy-requirements.txt
+-${BUILD_DIR}/python-env/bin/pip install -r ${MAIN_DIR}/scripts/tests-requirements.txt
+ 
+ 
+ ######################################################################
+@@ -72,4 +80,3 @@
+ cd ${MAIN_DIR}
+ virtualenv -p python2 ${BUILD_DIR}/python2-env
+ ${BUILD_DIR}/python2-env/bin/pip install -r ${MAIN_DIR}/scripts/klippy-requirements.txt
+-${BUILD_DIR}/python2-env/bin/pip install -r ${MAIN_DIR}/scripts/tests-requirements.txt
+Only in /tmp/klipper-upstream/scripts/: filter_workbench.ipynb
+diff -ru '--exclude=*.pyc' /tmp/klipper-upstream/scripts/flash-sdcard.sh /home/runner/work/u1-klipper/u1-klipper/scripts/flash-sdcard.sh
+--- /tmp/klipper-upstream/scripts/flash-sdcard.sh	2026-03-30 17:21:22.238173592 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/scripts/flash-sdcard.sh	2026-03-30 17:20:31.516335558 +0000
+@@ -1,5 +1,5 @@
+ #!/bin/bash
+-#  This script launches flash_sdcard.py, a utility that enables
++#  This script launches flash_sdcard.py, a utitlity that enables
+ #  unattended firmware updates on boards with "SD Card" bootloaders
+ 
+ # Non-standard installations may need to change this location
+diff -ru '--exclude=*.pyc' /tmp/klipper-upstream/scripts/flash_usb.py /home/runner/work/u1-klipper/u1-klipper/scripts/flash_usb.py
+--- /tmp/klipper-upstream/scripts/flash_usb.py	2026-03-30 17:21:22.238173592 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/scripts/flash_usb.py	2026-03-30 17:20:31.516335558 +0000
+@@ -198,7 +198,7 @@
+     # We need one level up to get access to busnum/devnum files
+     usbdir = os.path.dirname(devpath)
+     enter_bootloader(device)
+-    wait_path(usbdir + "/busnum")
++    wait_path(usbdir)
+     with open(usbdir + "/busnum") as f:
+         bus = f.read().strip()
+     with open(usbdir + "/devnum") as f:
+@@ -321,7 +321,7 @@
+ 
+ If the device is already in bootloader mode it can be flashed with the
+ following command:
+-  make flash FLASH_DEVICE=%s
++  make flash FLASH_DEVICE=2e8a:0003
+ 
+ Alternatively, one can flash rp2040 boards like the Pico by manually
+ entering bootloader mode(hold bootsel button during powerup), mount the
+@@ -330,16 +330,13 @@
+ """
+ 
+ def flash_rp2040(options, binfile):
+-    rawdev = "2e8a:0003"
+-    if options.mcutype == 'rp2350':
+-        rawdev = "2e8a:000f"
+     try:
+-        if options.device.lower() == rawdev:
++        if options.device.lower() == "2e8a:0003":
+             call_picoboot(None, None, binfile, options.sudo)
+         else:
+             flash_picoboot(options.device, binfile, options.sudo)
+     except error as e:
+-        sys.stderr.write(RP2040_HELP % (options.device, str(e), rawdev))
++        sys.stderr.write(RP2040_HELP % (options.device, str(e)))
+         sys.exit(-1)
+ 
+ MCUTYPES = {
+@@ -350,7 +347,7 @@
+     'stm32f070': flash_stm32f4, 'stm32f072': flash_stm32f4,
+     'stm32g0b1': flash_stm32f4, 'stm32f7': flash_stm32f4,
+     'stm32h7': flash_stm32f4, 'stm32l4': flash_stm32f4,
+-    'stm32g4': flash_stm32f4, 'rp2': flash_rp2040,
++    'stm32g4': flash_stm32f4, 'rp2040': flash_rp2040,
+ }
+ 
+ 
+diff -ru '--exclude=*.pyc' /tmp/klipper-upstream/scripts/graph_accelerometer.py /home/runner/work/u1-klipper/u1-klipper/scripts/graph_accelerometer.py
+--- /tmp/klipper-upstream/scripts/graph_accelerometer.py	2026-03-30 17:21:22.238173592 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/scripts/graph_accelerometer.py	2026-03-30 17:20:31.516335558 +0000
+@@ -2,10 +2,10 @@
+ # Generate adxl345 accelerometer graphs
+ #
+ # Copyright (C) 2020  Kevin O'Connor <kevin@koconnor.net>
+-# Copyright (C) 2020-2025  Dmitry Butyugin <dmbutyugin@google.com>
++# Copyright (C) 2020  Dmitry Butyugin <dmbutyugin@google.com>
+ #
+ # This file may be distributed under the terms of the GNU GPLv3 license.
+-import csv, importlib, optparse, os, sys
++import importlib, optparse, os, sys
+ from textwrap import wrap
+ import numpy as np, matplotlib
+ sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),
+@@ -19,49 +19,32 @@
+         for header in f:
+             if header.startswith('#'):
+                 continue
+-            if header.startswith('freq,'):
++            if header.startswith('freq,psd_x,psd_y,psd_z,psd_xyz'):
+                 # Processed power spectral density file
+                 break
+             # Raw accelerometer data
+             return np.loadtxt(logname, comments='#', delimiter=',')
+     # Parse power spectral density data
+-    data = np.genfromtxt(logname, dtype=np.float64, skip_header=1,
+-                         comments='#', delimiter=',', filling_values=0.)
+-    if header.startswith('freq,psd_x,psd_y,psd_z,psd_xyz'):
+-        calibration_data = shaper_calibrate.CalibrationData(
+-                name=logname, freq_bins=data[:,0], psd_sum=data[:,4],
+-                psd_x=data[:,1], psd_y=data[:,2], psd_z=data[:,3])
+-        calibration_data.set_numpy(np)
+-    else:
+-        parsed_header = next(csv.reader([header], delimiter=','))
+-        calibration_data = None
+-        for i, dataset_name in enumerate(parsed_header[1:]):
+-            if dataset_name == 'shapers:':
+-                break
+-            cdata = shaper_calibrate.CalibrationData(
+-                    name=dataset_name, freq_bins=data[:,0], psd_sum=data[:,i+1],
+-                    # Individual axes data is not stored
+-                    psd_x=None, psd_y=None, psd_z=None)
+-            cdata.set_numpy(np)
+-            if calibration_data is None:
+-                calibration_data = cdata
+-            else:
+-                calibration_data.add_data(cdata)
++    data = np.loadtxt(logname, skiprows=1, comments='#', delimiter=',')
++    calibration_data = shaper_calibrate.CalibrationData(
++            freq_bins=data[:,0], psd_sum=data[:,4],
++            psd_x=data[:,1], psd_y=data[:,2], psd_z=data[:,3])
++    calibration_data.set_numpy(np)
+     return calibration_data
+ 
+ ######################################################################
+ # Raw accelerometer graphing
+ ######################################################################
+ 
+-def plot_accel(opts, datas, lognames):
++def plot_accel(datas, lognames):
+     fig, axes = matplotlib.pyplot.subplots(nrows=3, sharex=True)
+     axes[0].set_title("\n".join(wrap(
+         "Accelerometer data (%s)" % (', '.join(lognames)), MAX_TITLE_LENGTH)))
+     axis_names = ['x', 'y', 'z']
+     for data, logname in zip(datas, lognames):
+         if isinstance(data, shaper_calibrate.CalibrationData):
+-            opts.error("Cannot plot raw accelerometer data using the processed"
+-                       " resonances, raw_data input is required")
++            raise error("Cannot plot raw accelerometer data using the processed"
++                        " resonances, raw_data input is required")
+         first_time = data[0, 0]
+         times = data[:,0] - first_time
+         for i in range(len(axis_names)):
+@@ -87,13 +70,16 @@
+ ######################################################################
+ 
+ # Calculate estimated "power spectral density"
+-def calc_freq_response(name, data, max_freq):
++def calc_freq_response(data, max_freq):
+     if isinstance(data, shaper_calibrate.CalibrationData):
+         return data
+     helper = shaper_calibrate.ShaperCalibrate(printer=None)
+-    return helper.process_accelerometer_data(name, data)
++    return helper.process_accelerometer_data(data)
+ 
+ def calc_specgram(data, axis):
++    if isinstance(data, shaper_calibrate.CalibrationData):
++        raise error("Cannot calculate the spectrogram using the processed"
++                    " resonances, raw_data input is required")
+     N = data.shape[0]
+     Fs = N / (data[-1,0] - data[0,0])
+     # Round up to a power of 2 for faster FFT
+@@ -113,45 +99,28 @@
+             pdata += _specgram(d[ax])[0]
+     return pdata, bins, t
+ 
+-def plot_frequency(opts, datas, lognames, max_freq, axis):
+-    calibration_data = calc_freq_response(lognames[0], datas[0], max_freq)
+-    for logname, data in zip(lognames[1:], datas[1:]):
+-        calibration_data.add_data(calc_freq_response(logname, data, max_freq))
++def plot_frequency(datas, lognames, max_freq):
++    calibration_data = calc_freq_response(datas[0], max_freq)
++    for data in datas[1:]:
++        calibration_data.add_data(calc_freq_response(data, max_freq))
++    freqs = calibration_data.freq_bins
++    psd = calibration_data.psd_sum[freqs <= max_freq]
++    px = calibration_data.psd_x[freqs <= max_freq]
++    py = calibration_data.psd_y[freqs <= max_freq]
++    pz = calibration_data.psd_z[freqs <= max_freq]
++    freqs = freqs[freqs <= max_freq]
+ 
+     fig, ax = matplotlib.pyplot.subplots()
++    ax.set_title("\n".join(wrap(
++        "Frequency response (%s)" % (', '.join(lognames)), MAX_TITLE_LENGTH)))
+     ax.set_xlabel('Frequency (Hz)')
+     ax.set_ylabel('Power spectral density')
+ 
+-    datasets = calibration_data.get_datasets()
+-    if len(datasets) == 1:
+-        freqs = calibration_data.freq_bins
+-        if axis == 'all':
+-            psd = calibration_data.psd_sum[freqs <= max_freq]
+-            px = calibration_data.psd_x[freqs <= max_freq]
+-            py = calibration_data.psd_y[freqs <= max_freq]
+-            pz = calibration_data.psd_z[freqs <= max_freq]
+-            freqs = freqs[freqs <= max_freq]
+-            ax.plot(freqs, psd, label='X+Y+Z', alpha=0.6)
+-            ax.plot(freqs, px, label='X', alpha=0.6)
+-            ax.plot(freqs, py, label='Y', alpha=0.6)
+-            ax.plot(freqs, pz, label='Z', alpha=0.6)
+-        else:
+-            psd = calibration_data.get_psd(axis)[freqs <= max_freq]
+-            freqs = freqs[freqs <= max_freq]
+-            ax.plot(freqs, psd, label=axis.upper(), alpha=0.6)
+-        title = "Frequency response (%s)" % calibration_data.name
+-    else:
+-        for data in datasets:
+-            freqs = data.freq_bins
+-            psd = data.get_psd(axis)
+-            if psd is None:
+-                opts.error("Per-axis data is not present in the input file(s)")
+-            psd = psd[freqs <= max_freq]
+-            freqs = freqs[freqs <= max_freq]
+-            ax.plot(freqs, psd, label=data.name)
+-            title = "Frequency responses comparison"
++    ax.plot(freqs, psd, label='X+Y+Z', alpha=0.6)
++    ax.plot(freqs, px, label='X', alpha=0.6)
++    ax.plot(freqs, py, label='Y', alpha=0.6)
++    ax.plot(freqs, pz, label='Z', alpha=0.6)
+ 
+-    ax.set_title("\n".join(wrap(title, MAX_TITLE_LENGTH)))
+     ax.xaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator())
+     ax.yaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator())
+     ax.grid(which='major', color='grey')
+@@ -164,11 +133,31 @@
+     fig.tight_layout()
+     return fig
+ 
++def plot_compare_frequency(datas, lognames, max_freq, axis):
++    fig, ax = matplotlib.pyplot.subplots()
++    ax.set_title('Frequency responses comparison')
++    ax.set_xlabel('Frequency (Hz)')
++    ax.set_ylabel('Power spectral density')
++
++    for data, logname in zip(datas, lognames):
++        calibration_data = calc_freq_response(data, max_freq)
++        freqs = calibration_data.freq_bins
++        psd = calibration_data.get_psd(axis)[freqs <= max_freq]
++        freqs = freqs[freqs <= max_freq]
++        ax.plot(freqs, psd, label="\n".join(wrap(logname, 60)), alpha=0.6)
++
++    ax.xaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator())
++    ax.yaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator())
++    ax.grid(which='major', color='grey')
++    ax.grid(which='minor', color='lightgrey')
++    fontP = matplotlib.font_manager.FontProperties()
++    fontP.set_size('x-small')
++    ax.legend(loc='best', prop=fontP)
++    fig.tight_layout()
++    return fig
++
+ # Plot data in a "spectrogram colormap"
+-def plot_specgram(opts, data, logname, max_freq, axis):
+-    if isinstance(data, shaper_calibrate.CalibrationData):
+-        opts.error("Cannot calculate the spectrogram using the processed"
+-                   " resonances, raw_data input is required")
++def plot_specgram(data, logname, max_freq, axis):
+     pdata, bins, t = calc_specgram(data, axis)
+ 
+     fig, ax = matplotlib.pyplot.subplots()
+@@ -185,12 +174,11 @@
+ # CSV output
+ ######################################################################
+ 
+-def write_frequency_response(lognames, datas, output):
++def write_frequency_response(datas, output):
+     helper = shaper_calibrate.ShaperCalibrate(printer=None)
+-    calibration_data = helper.process_accelerometer_data(lognames[0], datas[0])
+-    for logname, data in zip(lognames[1:], datas[1:]):
+-        calibration_data.add_data(
+-                helper.process_accelerometer_data(logname, data))
++    calibration_data = helper.process_accelerometer_data(datas[0])
++    for data in datas[1:]:
++        calibration_data.add_data(helper.process_accelerometer_data(data))
+     helper.save_calibration_data(output, calibration_data)
+ 
+ def write_specgram(psd, freq_bins, time, output):
+@@ -235,6 +223,9 @@
+                     help="maximum frequency to graph")
+     opts.add_option("-r", "--raw", action="store_true",
+                     help="graph raw accelerometer data")
++    opts.add_option("-c", "--compare", action="store_true",
++                    help="graph comparison of power spectral density "
++                         "between different accelerometer data files")
+     opts.add_option("-s", "--specgram", action="store_true",
+                     help="graph spectrogram of accelerometer data")
+     opts.add_option("-a", type="string", dest="axis", default="all",
+@@ -251,25 +242,29 @@
+     if is_csv_output(options.output):
+         if options.raw:
+             opts.error("raw mode is not supported with csv output")
++        if options.compare:
++            opts.error("comparison mode is not supported with csv output")
+         if options.specgram:
+             if len(args) > 1:
+                 opts.error("Only 1 input is supported in specgram mode")
+             pdata, bins, t = calc_specgram(datas[0], options.axis)
+             write_specgram(pdata, bins, t, options.output)
+         else:
+-            write_frequency_response(args, datas, options.output)
++            write_frequency_response(datas, options.output)
+         return
+ 
+     # Draw graph
+     if options.raw:
+-        fig = plot_accel(opts, datas, args)
++        fig = plot_accel(datas, args)
+     elif options.specgram:
+         if len(args) > 1:
+             opts.error("Only 1 input is supported in specgram mode")
+-        fig = plot_specgram(opts, datas[0], args[0],
+-                            options.max_freq, options.axis)
++        fig = plot_specgram(datas[0], args[0], options.max_freq, options.axis)
++    elif options.compare:
++        fig = plot_compare_frequency(datas, args, options.max_freq,
++                                     options.axis)
+     else:
+-        fig = plot_frequency(opts, datas, args, options.max_freq, options.axis)
++        fig = plot_frequency(datas, args, options.max_freq)
+ 
+     # Show graph
+     if options.output is None:
+diff -ru '--exclude=*.pyc' /tmp/klipper-upstream/scripts/graph_shaper.py /home/runner/work/u1-klipper/u1-klipper/scripts/graph_shaper.py
+--- /tmp/klipper-upstream/scripts/graph_shaper.py	2026-03-30 17:21:22.238173592 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/scripts/graph_shaper.py	2026-03-30 17:20:31.516335558 +0000
+@@ -5,17 +5,22 @@
+ # Copyright (C) 2020  Dmitry Butyugin <dmbutyugin@google.com>
+ #
+ # This file may be distributed under the terms of the GNU GPLv3 license.
+-import importlib, math, optparse, os, sys
++import optparse, math
+ import matplotlib
+ 
+-sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),
+-                             '..', 'klippy'))
+-shaper_defs = importlib.import_module('.shaper_defs', 'extras')
+-
+ # A set of damping ratios to calculate shaper response for
+-DEFAULT_DAMPING_RATIOS=[0.075, 0.1, 0.15]
++DAMPING_RATIOS=[0.05, 0.1, 0.2]
++
++# Parameters of the input shaper
++SHAPER_FREQ=50.0
++SHAPER_DAMPING_RATIO=0.1
++
++# Simulate input shaping of step function for these true resonance frequency
++# and damping ratio
++STEP_SIMULATION_RESONANCE_FREQ=60.
++STEP_SIMULATION_DAMPING_RATIO=0.15
+ 
+-# If set, defines which range of frequencies to plot shaper frequency response
++# If set, defines which range of frequencies to plot shaper frequency responce
+ PLOT_FREQ_RANGE = []  # If empty, will be automatically determined
+ #PLOT_FREQ_RANGE = [10., 100.]
+ 
+@@ -25,8 +30,86 @@
+ # Input shapers
+ ######################################################################
+ 
++def get_zv_shaper():
++    df = math.sqrt(1. - SHAPER_DAMPING_RATIO**2)
++    K = math.exp(-SHAPER_DAMPING_RATIO * math.pi / df)
++    t_d = 1. / (SHAPER_FREQ * df)
++    A = [1., K]
++    T = [0., .5*t_d]
++    return (A, T, "ZV")
++
++def get_zvd_shaper():
++    df = math.sqrt(1. - SHAPER_DAMPING_RATIO**2)
++    K = math.exp(-SHAPER_DAMPING_RATIO * math.pi / df)
++    t_d = 1. / (SHAPER_FREQ * df)
++    A = [1., 2.*K, K**2]
++    T = [0., .5*t_d, t_d]
++    return (A, T, "ZVD")
++
++def get_mzv_shaper():
++    df = math.sqrt(1. - SHAPER_DAMPING_RATIO**2)
++    K = math.exp(-.75 * SHAPER_DAMPING_RATIO * math.pi / df)
++    t_d = 1. / (SHAPER_FREQ * df)
++
++    a1 = 1. - 1. / math.sqrt(2.)
++    a2 = (math.sqrt(2.) - 1.) * K
++    a3 = a1 * K * K
++
++    A = [a1, a2, a3]
++    T = [0., .375*t_d, .75*t_d]
++    return (A, T, "MZV")
++
++def get_ei_shaper():
++    v_tol = 0.05 # vibration tolerance
++    df = math.sqrt(1. - SHAPER_DAMPING_RATIO**2)
++    K = math.exp(-SHAPER_DAMPING_RATIO * math.pi / df)
++    t_d = 1. / (SHAPER_FREQ * df)
++
++    a1 = .25 * (1. + v_tol)
++    a2 = .5 * (1. - v_tol) * K
++    a3 = a1 * K * K
++
++    A = [a1, a2, a3]
++    T = [0., .5*t_d, t_d]
++    return (A, T, "EI")
++
++def get_2hump_ei_shaper():
++    v_tol = 0.05 # vibration tolerance
++    df = math.sqrt(1. - SHAPER_DAMPING_RATIO**2)
++    K = math.exp(-SHAPER_DAMPING_RATIO * math.pi / df)
++    t_d = 1. / (SHAPER_FREQ * df)
++
++    V2 = v_tol**2
++    X = pow(V2 * (math.sqrt(1. - V2) + 1.), 1./3.)
++    a1 = (3.*X*X + 2.*X + 3.*V2) / (16.*X)
++    a2 = (.5 - a1) * K
++    a3 = a2 * K
++    a4 = a1 * K * K * K
++
++    A = [a1, a2, a3, a4]
++    T = [0., .5*t_d, t_d, 1.5*t_d]
++    return (A, T, "2-hump EI")
++
++def get_3hump_ei_shaper():
++    v_tol = 0.05 # vibration tolerance
++    df = math.sqrt(1. - SHAPER_DAMPING_RATIO**2)
++    K = math.exp(-SHAPER_DAMPING_RATIO * math.pi / df)
++    t_d = 1. / (SHAPER_FREQ * df)
++
++    K2 = K*K
++    a1 = 0.0625 * (1. + 3. * v_tol + 2. * math.sqrt(2. * (v_tol + 1.) * v_tol))
++    a2 = 0.25 * (1. - v_tol) * K
++    a3 = (0.5 * (1. + v_tol) - 2. * a1) * K2
++    a4 = a2 * K2
++    a5 = a1 * K2 * K2
++
++    A = [a1, a2, a3, a4, a5]
++    T = [0., .5*t_d, t_d, 1.5*t_d, 2.*t_d]
++    return (A, T, "3-hump EI")
++
++
+ def estimate_shaper(shaper, freq, damping_ratio):
+-    A, T = shaper
++    A, T, _ = shaper
+     n = len(T)
+     inv_D = 1. / sum(A)
+     omega = 2. * math.pi * freq
+@@ -40,18 +123,14 @@
+     return math.sqrt(S*S + C*C) * inv_D
+ 
+ def shift_pulses(shaper):
+-    A, T = shaper
++    A, T, name = shaper
+     n = len(T)
+     ts = sum([A[i] * T[i] for i in range(n)]) / sum(A)
+     for i in range(n):
+         T[i] -= ts
+ 
+ # Shaper selection
+-def get_shaper(shaper_name, shaper_freq, damping_ratio):
+-    for s in shaper_defs.INPUT_SHAPERS:
+-        if shaper_name.lower() == s.name:
+-            return s.init_func(shaper_freq, damping_ratio)
+-    return shaper_defs.get_none_shaper()
++get_shaper = get_ei_shaper
+ 
+ 
+ ######################################################################
+@@ -69,46 +148,44 @@
+             right = mid
+     return .5 * (left + right)
+ 
+-def find_shaper_plot_range(shaper, shaper_freq, test_damping_ratios, vib_tol):
++def find_shaper_plot_range(shaper, vib_tol):
+     def eval_shaper(freq):
+-        return estimate_shaper(shaper, freq, test_damping_ratios[0]) - vib_tol
++        return estimate_shaper(shaper, freq, DAMPING_RATIOS[0]) - vib_tol
+     if not PLOT_FREQ_RANGE:
+-        left = bisect(eval_shaper, 0., shaper_freq)
+-        right = bisect(eval_shaper, shaper_freq, 2.4 * shaper_freq)
++        left = bisect(eval_shaper, 0., SHAPER_FREQ)
++        right = bisect(eval_shaper, SHAPER_FREQ, 2.4 * SHAPER_FREQ)
+     else:
+         left, right = PLOT_FREQ_RANGE
+     return (left, right)
+ 
+-def gen_shaper_response(shaper, shaper_freq, test_damping_ratios):
+-    # Calculate shaper vibration response on a range of frequencies
++def gen_shaper_response(shaper):
++    # Calculate shaper vibration responce on a range of requencies
+     response = []
+     freqs = []
+-    freq, freq_end = find_shaper_plot_range(shaper, shaper_freq,
+-                                            test_damping_ratios, vib_tol=0.25)
++    freq, freq_end = find_shaper_plot_range(shaper, vib_tol=0.25)
+     while freq <= freq_end:
+         vals = []
+-        for damping_ratio in test_damping_ratios:
++        for damping_ratio in DAMPING_RATIOS:
+             vals.append(estimate_shaper(shaper, freq, damping_ratio))
+         response.append(vals)
+         freqs.append(freq)
+         freq += PLOT_FREQ_STEP
+-    legend = ['damping ratio = %.3f' % d_r for d_r in test_damping_ratios]
++    legend = ['damping ratio = %.3f' % d_r for d_r in DAMPING_RATIOS]
+     return freqs, response, legend
+ 
+-def gen_shaped_step_function(shaper, shaper_freq,
+-                             system_freq, system_damping_ratio):
++def gen_shaped_step_function(shaper):
+     # Calculate shaping of a step function
+-    A, T = shaper
++    A, T, _ = shaper
+     inv_D = 1. / sum(A)
+     n = len(T)
+ 
+-    omega = 2. * math.pi * system_freq
+-    damping = system_damping_ratio * omega
+-    omega_d = omega * math.sqrt(1. - system_damping_ratio**2)
+-    phase = math.acos(system_damping_ratio)
++    omega = 2. * math.pi * STEP_SIMULATION_RESONANCE_FREQ
++    damping = STEP_SIMULATION_DAMPING_RATIO * omega
++    omega_d = omega * math.sqrt(1. - STEP_SIMULATION_DAMPING_RATIO**2)
++    phase = math.acos(STEP_SIMULATION_DAMPING_RATIO)
+ 
+-    t_start = T[0] - .5 / shaper_freq
+-    t_end = T[-1] + 1.5 / system_freq
++    t_start = T[0] - .5 / SHAPER_FREQ
++    t_end = T[-1] + 1.5 / STEP_SIMULATION_RESONANCE_FREQ
+     result = []
+     time = []
+     t = t_start
+@@ -137,24 +214,20 @@
+ 
+         result.append(val)
+         time.append(t)
+-        t += .01 / shaper_freq
++        t += .01 / SHAPER_FREQ
+     legend = ['step', 'shaper commanded', 'system response']
+     return time, result, legend
+ 
+ 
+-def plot_shaper(shaper_name, shaper_freq, damping_ratio, test_damping_ratios,
+-                system_freq, system_damping_ratio):
+-    shaper = get_shaper(shaper_name, shaper_freq, damping_ratio)
++def plot_shaper(shaper):
+     shift_pulses(shaper)
+-    freqs, response, response_legend = gen_shaper_response(
+-            shaper, shaper_freq, test_damping_ratios)
+-    time, step_vals, step_legend = gen_shaped_step_function(
+-            shaper, shaper_freq, system_freq, system_damping_ratio)
++    freqs, response, response_legend = gen_shaper_response(shaper)
++    time, step_vals, step_legend = gen_shaped_step_function(shaper)
+ 
+     fig, (ax1, ax2) = matplotlib.pyplot.subplots(nrows=2, figsize=(10,9))
+     ax1.set_title("Vibration response simulation for shaper '%s',\n"
+                   "shaper_freq=%.1f Hz, damping_ratio=%.3f"
+-                  % (shaper_name, shaper_freq, damping_ratio))
++                  % (shaper[-1], SHAPER_FREQ, SHAPER_DAMPING_RATIO))
+     ax1.plot(freqs, response)
+     ax1.set_ylim(bottom=0.)
+     fontP = matplotlib.font_manager.FontProperties()
+@@ -168,7 +241,8 @@
+     ax1.grid(which='minor', color='lightgrey')
+ 
+     ax2.set_title("Unit step input, resonance frequency=%.1f Hz, "
+-                  "damping ratio=%.3f" % (system_freq, system_damping_ratio))
++                  "damping ratio=%.3f" % (STEP_SIMULATION_RESONANCE_FREQ,
++                                          STEP_SIMULATION_DAMPING_RATIO))
+     ax2.plot(time, step_vals)
+     ax2.legend(step_legend, loc='best', prop=fontP)
+     ax2.set_xlabel('Time, sec')
+@@ -190,48 +264,13 @@
+     opts = optparse.OptionParser(usage)
+     opts.add_option("-o", "--output", type="string", dest="output",
+                     default=None, help="filename of output graph")
+-    opts.add_option("--shaper", type="string", dest="shaper", default="mzv",
+-                    help="a shaper to plot")
+-    opts.add_option("--shaper_freq", type="float", dest="shaper_freq",
+-                    default=50.0, help="shaper frequency")
+-    opts.add_option("--damping_ratio", type="float", dest="damping_ratio",
+-                    default=shaper_defs.DEFAULT_DAMPING_RATIO,
+-                    help="shaper damping_ratio parameter")
+-    opts.add_option("--test_damping_ratios", type="string",
+-                    dest="test_damping_ratios",
+-                    default=",".join(["%.3f" % dr
+-                                      for dr in DEFAULT_DAMPING_RATIOS]),
+-                    help="a comma-separated list of damping ratios to test " +
+-                    "input shaper for")
+-    opts.add_option("--system_freq", type="float", dest="system_freq",
+-                    default=60.0,
+-                    help="natural frequency of a system for step simulation")
+-    opts.add_option("--system_damping_ratio", type="float",
+-                    dest="system_damping_ratio", default=0.15,
+-                    help="damping_ratio of a system for step simulation")
+     options, args = opts.parse_args()
+     if len(args) != 0:
+         opts.error("Incorrect number of arguments")
+ 
+-    if options.shaper.lower() not in [
+-            s.name for s in shaper_defs.INPUT_SHAPERS]:
+-        opts.error("Invalid --shaper=%s specified" % options.shaper)
+-
+-    if options.test_damping_ratios:
+-        try:
+-            test_damping_ratios = [float(s) for s in
+-                                   options.test_damping_ratios.split(',')]
+-        except ValueError:
+-            opts.error("invalid floating point value in " +
+-                       "--test_damping_ratios param")
+-    else:
+-        test_damping_ratios = None
+-
+     # Draw graph
+     setup_matplotlib(options.output is not None)
+-    fig = plot_shaper(options.shaper, options.shaper_freq,
+-                      options.damping_ratio, test_damping_ratios,
+-                      options.system_freq, options.system_damping_ratio)
++    fig = plot_shaper(get_shaper())
+ 
+     # Show graph
+     if options.output is None:
+diff -ru '--exclude=*.pyc' /tmp/klipper-upstream/scripts/graphstats.py /home/runner/work/u1-klipper/u1-klipper/scripts/graphstats.py
+--- /tmp/klipper-upstream/scripts/graphstats.py	2026-03-30 17:21:22.238173592 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/scripts/graphstats.py	2026-03-30 17:20:31.516335558 +0000
+@@ -1,14 +1,14 @@
+ #!/usr/bin/env python
+ # Script to parse a logging file, extract the stats, and graph them
+ #
+-# Copyright (C) 2016-2025  Kevin O'Connor <kevin@koconnor.net>
++# Copyright (C) 2016-2021  Kevin O'Connor <kevin@koconnor.net>
+ #
+ # This file may be distributed under the terms of the GNU GPLv3 license.
+ import optparse, datetime
+ import matplotlib
+ 
+ MAXBANDWIDTH=25000.
+-MAXBUFFER=1.
++MAXBUFFER=2.
+ STATS_INTERVAL=5.
+ TASK_MAX=0.0025
+ 
+diff -ru '--exclude=*.pyc' /tmp/klipper-upstream/scripts/klippy-requirements.txt /home/runner/work/u1-klipper/u1-klipper/scripts/klippy-requirements.txt
+--- /tmp/klipper-upstream/scripts/klippy-requirements.txt	2026-03-30 17:21:22.239173589 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/scripts/klippy-requirements.txt	2026-03-30 17:20:31.517335555 +0000
+@@ -2,20 +2,10 @@
+ # the Klipper host software (Klippy).  These package requirements are
+ # typically installed via the command:
+ #   pip install -r klippy-requirements.txt
+-
+-# greenlet is used by the reactor.py code
++cffi==1.14.6
++pyserial==3.4
+ greenlet==2.0.2 ; python_version < '3.12'
+-greenlet==3.1.1 ; python_version >= '3.12'
+-# cffi is used by "chelper" code and by greenlet
+-cffi==1.14.6 ; python_version < '3.12'
+-cffi==1.17.1 ; python_version >= '3.12'
+-# Jinja2 is used by gcode_macro.py
++greenlet==3.0.3 ; python_version >= '3.12'
+ Jinja2==2.11.3
+-markupsafe==1.1.1       # Needed by Jinja2
+-# pyserial is used by serialhdl.py (for USB and UART mcu connections)
+-pyserial==3.4
+-# python-can is used by serialhdl.py (for canbus mcu connections)
+ python-can==3.3.4
+-setuptools==78.1.1 ; python_version >= '3.12' # Needed by python-can
+-# msgspec is an optional dependency of webhooks.py
+-msgspec==0.19.0 ; python_version >= '3.9'
++markupsafe==1.1.1
+diff -ru '--exclude=*.pyc' /tmp/klipper-upstream/scripts/motan/analyzers.py /home/runner/work/u1-klipper/u1-klipper/scripts/motan/analyzers.py
+--- /tmp/klipper-upstream/scripts/motan/analyzers.py	2026-03-30 17:21:22.239173589 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/scripts/motan/analyzers.py	2026-03-30 17:20:31.517335555 +0000
+@@ -33,8 +33,7 @@
+         elif '(mm/s)' in units:
+             rep = [('Velocity', 'Acceleration'), ('(mm/s)', '(mm/s^2)')]
+         else:
+-            return {'label': 'Derivative of %s' % (label['label']),
+-                    'units': 'Unknown'}
++            return {'label': 'Derivative', 'units': 'Unknown'}
+         for old, new in rep:
+             lname = lname.replace(old, new).replace(old.lower(), new.lower())
+             units = units.replace(old, new).replace(old.lower(), new.lower())
+@@ -197,77 +196,6 @@
+         return data
+ AHandlers["smooth"] = GenSmoothed
+ 
+-class GenSOSFilter:
+-    ParametersMin = 5
+-    ParametersMax = 6
+-    DataSets = [
+-        ('sos(<dataset>,{filt,filtfilt},highpass,<order>,<hz>)',
+-         'SOS highpass filtered dataset'),
+-        ('sos(<dataset>,{filt,filtfilt},lowpass,<order>,<hz>)',
+-         'SOS lowpass filtered dataset'),
+-        ('sos(<dataset>,{filt,filtfilt},bandpass,<order>,<lowhz>,<highhz>)',
+-         'SOS lowpass filtered dataset'),
+-        ('sos(<dataset>,{filt,filtfilt},notch,<hz>,<quality>)',
+-         'SOS notch filtered dataset'),
+-    ]
+-    def __init__(self, amanager, name_parts):
+-        self.amanager = amanager
+-        self.source = name_parts[1]
+-
+-        from numpy import array
+-        from scipy.signal import sosfiltfilt, sosfilt, sosfilt_zi
+-        self.array = array
+-        self.type = name_parts[2]
+-        if self.type == "filt":
+-            self.sosfilt = sosfilt
+-            self.sosfilt_zi = sosfilt_zi
+-        elif self.type == "filtfilt":
+-            self.sosfilt = sosfiltfilt
+-        else:
+-            amanager.error("Unknown sos type '%s'" % (self.type,))
+-
+-        filter_type = name_parts[3]
+-        amanager.setup_dataset(self.source)
+-        inv_seg_time = 1.0 / amanager.get_segment_time()
+-
+-        if filter_type in ('highpass', 'lowpass', 'bandpass'):
+-            from scipy.signal import butter
+-            order = int(name_parts[4])
+-            cutoff = float(name_parts[5])
+-            desc = "%.fHz" % (cutoff)
+-            if filter_type == 'bandpass':
+-                cutoff = (cutoff, float(name_parts[6]))
+-                desc = "%.1f..%.1fHz" % cutoff
+-            self.sos = butter(order, cutoff, filter_type, output='sos',
+-                              fs=inv_seg_time)
+-            self.filter_desc = "%s %s order %d" % (filter_type, desc, order)
+-        elif filter_type == 'notch':
+-            from scipy.signal import iirnotch, tf2sos
+-            freq = float(name_parts[4])
+-            quality = float(name_parts[5])
+-            b, a = iirnotch(freq, Q=quality, fs=inv_seg_time)
+-            self.sos = tf2sos(b, a)
+-            self.filter_desc = "notch %.1fHz Q: %.1f" % (freq, quality)
+-        else:
+-            raise amanager.error("Unknown filter type '%s'" % (filter_type,))
+-
+-    def get_label(self):
+-        label = self.amanager.get_label(self.source)
+-        lname = "SOS %s (%s)" % (self.filter_desc, label['label'])
+-        return {'label': lname, 'units': label['units']}
+-
+-    def generate_data(self):
+-        data = self.amanager.get_datasets()[self.source]
+-        data_array = self.array(data)
+-        if self.type == "filt":
+-            zi = self.sosfilt_zi(self.sos) * data_array[0]
+-            filtered, _ = self.sosfilt(self.sos, data_array, zi=zi)
+-        else:
+-            filtered = self.sosfilt(self.sos, data_array)
+-        return filtered.tolist()
+-
+-AHandlers["sos"] = GenSOSFilter
+-
+ # Calculate a kinematic stepper position from the toolhead requested position
+ class GenKinematicPosition:
+     ParametersMin = ParametersMax = 1
+diff -ru '--exclude=*.pyc' /tmp/klipper-upstream/scripts/motan/data_logger.py /home/runner/work/u1-klipper/u1-klipper/scripts/motan/data_logger.py
+--- /tmp/klipper-upstream/scripts/motan/data_logger.py	2026-03-30 17:21:22.240153404 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/scripts/motan/data_logger.py	2026-03-30 17:20:31.518229820 +0000
+@@ -1,32 +1,14 @@
+ #!/usr/bin/env python
+ # Tool to subscribe to motion data and log it to a disk file
+ #
+-# Copyright (C) 2020-2026  Kevin O'Connor <kevin@koconnor.net>
++# Copyright (C) 2020-2021  Kevin O'Connor <kevin@koconnor.net>
+ #
+ # This file may be distributed under the terms of the GNU GPLv3 license.
+-import sys, os, optparse, socket, select, json, errno, time, zlib, fnmatch
++import sys, os, optparse, socket, select, json, errno, time, zlib
+ 
+ INDEX_UPDATE_TIME = 5.0
+ ClientInfo = {'program': 'motan_data_logger', 'version': 'v0.1'}
+ 
+-# Available subscriptions when a given config type is found
+-ConfigSubscriptions = [
+-    # (cfgtype, capture_name, api_request, request_params)
+-    ('adxl345', 'accelerometer:{csn}', '{ct}/dump_{ct}', {'sensor': '{csn}'}),
+-    ('lis2dw', 'accelerometer:{csn}', '{ct}/dump_{ct}', {'sensor': '{csn}'}),
+-    ('mpu9250', 'accelerometer:{csn}', '{ct}/dump_{ct}', {'sensor': '{csn}'}),
+-    ('bmi160', 'accelerometer:{csn}', '{ct}/dump_{ct}', {'sensor': '{csn}'}),
+-    ('icm20948', 'accelerometer:{csn}', '{ct}/dump_{ct}', {'sensor': '{csn}'}),
+-    ('angle', '{ct}:{csn}', '{ct}/dump_{ct}', {'sensor': '{csn}'}),
+-    ('probe_eddy_current', 'ldc1612:{csn}', 'ldc1612/dump_ldc1612',
+-     {'sensor': '{csn}'}),
+-    ('tmc2130', 'stallguard:{csn}', 'tmc/stallguard_dump', {'name': '{csn}'}),
+-    ('tmc2209', 'stallguard:{csn}', 'tmc/stallguard_dump', {'name': '{csn}'}),
+-    ('tmc2260', 'stallguard:{csn}', 'tmc/stallguard_dump', {'name': '{csn}'}),
+-    ('tmc2240', 'stallguard:{csn}', 'tmc/stallguard_dump', {'name': '{csn}'}),
+-    ('tmc5160', 'stallguard:{csn}', 'tmc/stallguard_dump', {'name': '{csn}'}),
+-]
+-
+ def webhook_socket_create(uds_filename):
+     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+     sock.setblocking(0)
+@@ -71,7 +53,7 @@
+         self.comp = None
+ 
+ class DataLogger:
+-    def __init__(self, uds_filename, log_prefix, want_subscriptions):
++    def __init__(self, uds_filename, log_prefix):
+         # IO
+         self.webhook_socket = webhook_socket_create(uds_filename)
+         self.poll = select.poll()
+@@ -86,9 +68,6 @@
+         # get_status databasing
+         self.db = {}
+         self.next_index_time = 0.
+-        # Subscriptions
+-        self.want_subscriptions = want_subscriptions
+-        self.need_subscriptions = []
+         # Start login process
+         self.send_query("info", "info", {"client_info": ClientInfo},
+                         self.handle_info)
+@@ -143,48 +122,6 @@
+                         self.process_socket()
+         except KeyboardInterrupt as e:
+             self.finish("Keyboard Interrupt")
+-    # Subscription handling
+-    def build_subscriptions(self, status):
+-        avail = []
+-        # trapq and stepq subscriptions from motion_report
+-        motion_report = status.get("motion_report", {})
+-        for trapq in motion_report.get("trapq", []):
+-            avail.append(("trapq:" + trapq, "motion_report/dump_trapq",
+-                          {"name": trapq}))
+-        for stepper in motion_report.get("steppers", []):
+-            avail.append(("stepq:" + stepper, "motion_report/dump_stepper",
+-                          {"name": stepper}))
+-        # config based subsciriptions
+-        config = status["configfile"]["settings"]
+-        cfgtypes = {p[0]: p for p in ConfigSubscriptions}
+-        for cfgname in config.keys():
+-            ct = cfgname.split()[0]
+-            if ct not in cfgtypes:
+-                continue
+-            cfgtype, capture_name, request, params = cfgtypes[ct]
+-            cfgparts = cfgname.split()
+-            csn = cfgparts[-1]
+-            if len(cfgparts) > 1:
+-                csn = ' '.join(cfgparts[1:])
+-            fill = {'ct':ct, 'csn': csn}
+-            capture_name = capture_name.format(**fill)
+-            request = request.format(**fill)
+-            params = {k: v.format(**fill) for k, v in params.items()}
+-            avail.append((capture_name, request, params))
+-        # Report available subscriptions
+-        capture_names = [a[0] for a in avail]
+-        sys.stdout.write("Available subscriptions:\n  %s\n"
+-                         % ('\n  '.join(sorted(capture_names)).strip(),))
+-        # Limit subscriptions to those desired
+-        want_captures = {}
+-        for pattern in self.want_subscriptions:
+-            m = fnmatch.filter(capture_names, pattern)
+-            want_captures.update({cn: 1 for cn in m})
+-        want = sorted(list(want_captures.keys()))
+-        avail_by_name = {a[0]:a for a in avail}
+-        self.need_subscriptions = [avail_by_name[n] for n in want]
+-        sys.stdout.write("Subscribing to:\n  %s\n"
+-                         % ('\n  '.join(want).strip(),))
+     # Query response handlers
+     def send_subscribe(self, msg_id, method, params, cb=None, async_cb=None):
+         if cb is None:
+@@ -205,12 +142,28 @@
+         result = msg["result"]
+         self.next_index_time = result["eventtime"] + INDEX_UPDATE_TIME
+         self.db["status"] = status = result["status"]
+-        # Determine available subscriptions
+-        self.build_subscriptions(status)
+-        # Subscribe
+-        for capture_name, request, params in self.need_subscriptions:
+-            self.send_subscribe(capture_name, request, params)
+-        sys.stdout.write("Starting capture...\n")
++        # Subscribe to trapq and stepper queue updates
++        motion_report = status.get("motion_report", {})
++        for trapq in motion_report.get("trapq", []):
++            self.send_subscribe("trapq:" + trapq, "motion_report/dump_trapq",
++                                {"name": trapq})
++        for stepper in motion_report.get("steppers", []):
++            self.send_subscribe("stepq:" + stepper,
++                                "motion_report/dump_stepper", {"name": stepper})
++        # Subscribe to additional sensor data
++        # stypes = ["adxl345", "lis2dw", "mpu9250", "angle"]
++        # stypes = {st:st for st in stypes}
++        stypes = dict()
++        stypes['probe_eddy_current'] = 'ldc1612'
++        stypes['inductance_coil'] = 'inductance_coil'
++        config = status["configfile"]["settings"]
++        for cfgname in config.keys():
++            for capprefix, st in sorted(stypes.items()):
++                if cfgname == capprefix or cfgname.startswith(capprefix + " "):
++                    aname = cfgname.split()[-1]
++                    lname = "%s:%s" % (st, aname)
++                    qcmd = "%s/dump_%s" % (st, st)
++                    self.send_subscribe(lname, qcmd, {"sensor": aname})
+     def handle_dump(self, msg, raw_msg):
+         msg_id = msg["id"]
+         if "result" not in msg:
+@@ -242,23 +195,12 @@
+ def main():
+     usage = "%prog [options] <socket filename> <log name>"
+     opts = optparse.OptionParser(usage)
+-    opts.add_option("-s", "--subscribe", dest="subscribe", default="",
+-                    help="comma separated list of subscription patterns")
+-    opts.add_option("--no-default", action="store_true",
+-                    help="disable default subscriptions")
+     options, args = opts.parse_args()
+     if len(args) != 2:
+         opts.error("Incorrect number of arguments")
+ 
+-    # Determine subscriptions
+-    want_subs = ['trapq:*', 'stepq:*']
+-    if options.no_default:
+-        want_subs = []
+-    want_subs.extend([s.strip() for s in options.subscribe.split(',')])
+-
+-    # Connect and start capture
+     nice()
+-    dl = DataLogger(args[0], args[1], want_subs)
++    dl = DataLogger(args[0], args[1])
+     dl.run()
+ 
+ if __name__ == '__main__':
+diff -ru '--exclude=*.pyc' /tmp/klipper-upstream/scripts/motan/readlog.py /home/runner/work/u1-klipper/u1-klipper/scripts/motan/readlog.py
+--- /tmp/klipper-upstream/scripts/motan/readlog.py	2026-03-30 17:21:22.240153404 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/scripts/motan/readlog.py	2026-03-30 17:20:31.518229820 +0000
+@@ -3,6 +3,7 @@
+ # Copyright (C) 2021  Kevin O'Connor <kevin@koconnor.net>
+ #
+ # This file may be distributed under the terms of the GNU GPLv3 license.
++import random, time
+ import json, zlib
+ 
+ class error(Exception):
+@@ -234,64 +235,6 @@
+                 step_data.append((step_time, step_halfpos, step_pos))
+ LogHandlers["stepq"] = HandleStepQ
+ 
+-# Extract tmc current and stallguard data from the log
+-class HandleStallguard:
+-    SubscriptionIdParts = 2
+-    ParametersMin = 2
+-    ParametersMax = 2
+-    DataSets = [
+-        ('stallguard(<stepper>,sg_result)',
+-         'Stallguard result of the given stepper driver'),
+-        ('stallguard(<stepper>,cs_actual)',
+-         'Current level result of the given stepper driver'),
+-    ]
+-    def __init__(self, lmanager, name, name_parts):
+-        self.name = name
+-        self.stepper_name = name_parts[1]
+-        self.filter = name_parts[2]
+-        self.jdispatch = lmanager.get_jdispatch()
+-        self.data = []
+-        self.ret = None
+-        self.driver_name = ""
+-        for k in lmanager.get_initial_status()['configfile']['settings']:
+-            if not k.startswith("tmc"):
+-                continue
+-            if k.endswith(self.stepper_name):
+-                self.driver_name = k
+-                break
+-        # Current decode
+-        self.status_tracker = lmanager.get_status_tracker()
+-        self.next_status_time = 0.
+-        self.irun = 0
+-    def get_label(self):
+-        label = '%s %s %s' % (self.driver_name, self.stepper_name,
+-                              self.filter)
+-        if self.filter == "sg_result":
+-            return {'label': label, 'units': 'Stallguard'}
+-        elif self.filter == "cs_actual":
+-            return {'label': label, 'units': 'CS Actual'}
+-    # Search datapoint in dataset extrapolate in between
+-    def pull_data(self, req_time):
+-        while 1:
+-            if len(self.data) == 0:
+-                jmsg = self.jdispatch.pull_msg(req_time, self.name)
+-                if jmsg is None:
+-                    return
+-                self.data = jmsg["data"]
+-            if self.ret is None and len(self.data) > 0:
+-                time, sg_result, cs_actual = self.data.pop(0)
+-                self.ret = {
+-                    "time": time,
+-                    "sg_result": sg_result,
+-                    "cs_actual": cs_actual,
+-                }
+-            if self.ret:
+-                time = self.ret["time"]
+-                if req_time <= time:
+-                    return self.ret[self.filter]
+-                self.ret = None
+-LogHandlers["stallguard"] = HandleStallguard
+-
+ # Extract stepper motor phase position
+ class HandleStepPhase:
+     SubscriptionIdParts = 0
+@@ -393,26 +336,25 @@
+ LogHandlers["step_phase"] = HandleStepPhase
+ 
+ # Extract accelerometer data
+-class HandleAccelerometer:
++class HandleADXL345:
+     SubscriptionIdParts = 2
+     ParametersMin = ParametersMax = 2
+     DataSets = [
+-        ('accelerometer(<name>,<axis>)',
+-         'Accelerometer for given axis (x, y, or z)'),
++        ('adxl345(<name>,<axis>)', 'Accelerometer for given axis (x, y, or z)'),
+     ]
+     def __init__(self, lmanager, name, name_parts):
+         self.name = name
+-        self.accel_name = name_parts[1]
++        self.adxl_name = name_parts[1]
+         self.jdispatch = lmanager.get_jdispatch()
+         self.next_accel_time = self.last_accel_time = 0.
+         self.next_accel = self.last_accel = (0., 0., 0.)
+         self.cur_data = []
+         self.data_pos = 0
+         if name_parts[2] not in 'xyz':
+-            raise error("Unknown accelerometer data selection '%s'" % (name,))
++            raise error("Unknown adxl345 data selection '%s'" % (name,))
+         self.axis = 'xyz'.index(name_parts[2])
+     def get_label(self):
+-        label = '%s %s acceleration' % (self.accel_name, 'xyz'[self.axis])
++        label = '%s %s acceleration' % (self.adxl_name, 'xyz'[self.axis])
+         return {'label': label, 'units': 'Acceleration\n(mm/s^2)'}
+     def pull_data(self, req_time):
+         axis = self.axis
+@@ -435,8 +377,7 @@
+             self.next_accel_time, x, y, z = self.cur_data[self.data_pos]
+             self.next_accel = (x, y, z)
+             self.data_pos += 1
+-LogHandlers["accelerometer"] = HandleAccelerometer
+-LogHandlers["adxl345"] = HandleAccelerometer # XXX - old capture name
++LogHandlers["adxl345"] = HandleADXL345
+ 
+ # Extract positions from magnetic angle sensor
+ class HandleAngle:
+@@ -564,6 +505,69 @@
+             self.data_pos += 1
+ LogHandlers["ldc1612"] = HandleEddyCurrent
+ 
++# Extract inductance coil data
++class HandleInductaCoil:
++    SubscriptionIdParts = 2
++    ParametersMin = 1
++    ParametersMax = 2
++    DataSets = [
++        ('inductance_coil(<name>)', 'Coil resonant frequency')
++    ]
++    def __init__(self, lmanager, name, name_parts):
++        self.name = name
++        self.sensor_name = name_parts[1]
++        if len(name_parts) == 3 and name_parts[2] not in ("period", "z"):
++            raise error("Unknown inductance_coil selection '%s'" % (name_parts[2],))
++        self.report_frequency = True
++        self.jdispatch = lmanager.get_jdispatch()
++        self.next_samp = self.prev_samp = [0., 0.]
++        self.cur_data = []
++        self.data_pos = 0
++        t = time.time() * 1000
++        self.csv = open("{}_freq.csv".format(lmanager.log_prefix), "w+")
++    def __del__(self):
++        try:
++            self.csv.close()
++        except:
++            pass
++
++    def get_label(self):
++        if self.report_frequency:
++            label = '%s frequency' % (self.sensor_name,)
++            return {'label': label, 'units': 'Frequency\n(Hz)'}
++        label = '%s period' % (self.sensor_name,)
++        return {'label': label, 'units': 'Period\n(s)'}
++    def pull_data(self, req_time):
++        while 1:
++            next_time, next_freq = self.next_samp
++            if req_time <= next_time:
++                prev_time, prev_freq = self.prev_samp
++                if self.report_frequency:
++                    next_val = next_freq
++                    prev_val = prev_freq
++                else:
++                    next_val = 1. / next_freq
++                    prev_val = 1. / prev_freq
++                return interpolate(next_val, prev_val, next_time, prev_time,
++                                   req_time)
++            if self.data_pos >= len(self.cur_data):
++                # Read next data block
++                jmsg = self.jdispatch.pull_msg(req_time, self.name)
++                if jmsg is None:
++                    return 0.
++                self.cur_data = jmsg['data']
++                self.data_pos = 0
++                continue
++            self.prev_samp = self.next_samp
++            self.next_samp = self.cur_data[self.data_pos]
++            data_time, data_freq = self.next_samp
++            if data_freq > 0:
++                self.csv.write("{},{}\n".format(data_time, data_freq))
++            else:
++                return 0
++            self.data_pos += 1
++
++LogHandlers["inductance_coil"] = HandleInductaCoil
+ 
+ ######################################################################
+ # Log reading
+@@ -699,6 +703,7 @@
+         self.start_status = {}
+         self.log_subscriptions = {}
+         self.status_tracker = None
++        self.log_prefix = log_prefix
+     def setup_index(self):
+         fmsg = self.index_reader.pull_msg()
+         self.initial_status = status = fmsg['status']
+@@ -739,19 +744,6 @@
+             self.status_tracker = TrackStatus(self, "status", self.start_status)
+             self.jdispatch.add_handler("status", "status")
+         return self.status_tracker
+-    def get_tip_msg(self, subscription_id):
+-        available = []
+-        dataset_name = subscription_id.split(":")[0]
+-        for k in self.log_subscriptions:
+-            if dataset_name in k:
+-                # Extract available keys
+-                name = k.split(":")[1:]
+-                if len(name) == 1:
+-                    suggest = "%s(%s,...)" % (dataset_name, name[0])
+-                    available.append(suggest)
+-                else:
+-                    available.append(name)
+-        return "Available options: %s" % (", ".join(available))
+     def setup_dataset(self, name):
+         if name in self.datasets:
+             return self.datasets[name]
+@@ -765,9 +757,7 @@
+         if cls.SubscriptionIdParts:
+             subscription_id = ":".join(name_parts[:cls.SubscriptionIdParts])
+             if subscription_id not in self.log_subscriptions:
+-                tip_msg = self.get_tip_msg(subscription_id)
+-                raise error("Dataset '%s' not in capture\n%s" % (
+-                            subscription_id, tip_msg))
++                raise error("Dataset '%s' not in capture" % (subscription_id,))
+             self.jdispatch.add_handler(name, subscription_id)
+         self.datasets[name] = hdl = cls(self, name, name_parts)
+         return hdl
+diff -ru '--exclude=*.pyc' /tmp/klipper-upstream/scripts/spi_flash/board_defs.py /home/runner/work/u1-klipper/u1-klipper/scripts/spi_flash/board_defs.py
+--- /tmp/klipper-upstream/scripts/spi_flash/board_defs.py	2026-03-30 17:21:22.240153404 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/scripts/spi_flash/board_defs.py	2026-03-30 17:20:31.518335552 +0000
+@@ -31,11 +31,6 @@
+         'spi_bus': "spi1",
+         "cs_pin": "PA4"
+     },
+-    'btt-skr-mini-v3-b0': {
+-        'mcu': "stm32g0b0xx",
+-        'spi_bus': "spi1",
+-        "cs_pin": "PA4"
+-    },
+     'flyboard-mini': {
+         'mcu': "stm32f103xe",
+         'spi_bus': "spi2",
+@@ -46,21 +41,9 @@
+         'mcu': "stm32f103xe",
+         'spi_bus': "spi2",
+         "cs_pin": "PA15",
+-        "conversion_script": "scripts/update_mks_robin.py",
+         "firmware_path": "Robin_e3.bin",
+         "current_firmware_path": "Robin_e3.cur"
+     },
+-    # twotrees sapphire 5 v1.1 using mks robin nano 1.2 board
+-    'mks-robin-v12': {
+-        'mcu': "stm32f103xe",
+-        'spi_bus': "swspi",
+-        'spi_pins': "PC8,PD2,PC12",
+-        'cs_pin': "PC11",
+-        'skip_verify': True,
+-        "conversion_script": "scripts/update_mks_robin.py",
+-        "firmware_path": "ROBIN_NANO35.BIN",
+-        "current_firmware_path": "ROBIN_NANO35.BIN"
+-    },
+     'btt-octopus-f407-v1': {
+         'mcu': "stm32f407xx",
+         'spi_bus': "swspi",
+@@ -123,8 +106,7 @@
+         'spi_bus': "swspi",
+         'spi_pins': "PC8,PD2,PC12",
+         'cs_pin': "PC11",
+-        'skip_verify': True,
+-        'requires_unique_fw_name': True
++        'skip_verify': True
+     },
+     'monster8': {
+         'mcu': "stm32f407xx",
+@@ -142,50 +124,10 @@
+         "cs_pin": "PA4",
+         "current_firmware_path": "OLD.BIN"
+     },
+-    'btt-octopus-max-ez': {
+-        'mcu': "stm32h723xx",
+-        'spi_bus': "swspi",
+-        'spi_pins': "PE13,PE14,PE12",
+-        'cs_pin': "PB12",
+-        'skip_verify': True
+-    },
+     'btt-skrat': {
+         'mcu': "stm32g0b1xx",
+         'spi_bus': "spi1",
+         "cs_pin": "PB8"
+-    },
+-    'chitu-v6': {
+-        'mcu': "stm32f103xe",
+-        'spi_bus': "swspi",
+-        'spi_pins': "PC8,PD2,PC12",
+-        "cs_pin": "PC11",
+-        #'sdio_bus': 'sdio',
+-        "conversion_script": "scripts/update_chitu.py",
+-        "firmware_path": "update.cbd",
+-        'skip_verify': True
+-    },
+-    'znp-robin-nano-dw-v2.2': {
+-        'mcu': "stm32f401xc",
+-        'spi_bus': "spi2",
+-        "cs_pin": "PB12",
+-        "firmware_path": "ZNP_ROBIN_NANO.bin",
+-        "current_firmware_path": "ZNP_ROBIN_NANO.CUR"
+-    },
+-    'qidi-x6': {
+-        'mcu': "stm32f401xc",
+-        'spi_bus': "spi2",
+-        'cs_pin': "PB12",
+-        'skip_verify': False,
+-        'firmware_path': 'X_4.bin',
+-        'current_firmware_path': 'X_4.CUR'
+-    },
+-    'qidi-x7': {
+-        'mcu': "stm32f401xc",
+-        'spi_bus': "spi2",
+-        'cs_pin': "PB12",
+-        'skip_verify': False,
+-        'firmware_path': 'qd_mcu.bin',
+-        'current_firmware_path': 'qd_mcu.CUR'
+     }
+ }
+ 
+@@ -210,7 +152,6 @@
+     'btt-skr-mini-e3-v1.2': BOARD_DEFS['btt-skr-mini'],
+     'btt-skr-mini-e3-v2': BOARD_DEFS['btt-skr-mini'],
+     'btt-skr-mini-e3-v3': BOARD_DEFS['btt-skr-mini-v3'],
+-    'btt-skr-mini-e3-v3-b0': BOARD_DEFS['btt-skr-mini-v3-b0'],
+     'btt-skr-mini-mz': BOARD_DEFS['btt-skr-mini'],
+     'btt-skr-e3-dip': BOARD_DEFS['btt-skr-mini'],
+     'btt002-v1': BOARD_DEFS['btt-skr-mini'],
+@@ -235,13 +176,7 @@
+     'fysetc-s6-v1.2': BOARD_DEFS['fysetc-spider'],
+     'fysetc-s6-v2': BOARD_DEFS['fysetc-spider'],
+     'robin_v3': BOARD_DEFS['monster8'],
+-    'btt-skrat-v1.0': BOARD_DEFS['btt-skrat'],
+-    'chitu-v6': BOARD_DEFS['chitu-v6'],
+-    'qidi-x-smart3': BOARD_DEFS['qidi-x6'],
+-    'qidi-x-plus3': BOARD_DEFS['qidi-x6'],
+-    'qidi-x-max3': BOARD_DEFS['qidi-x6'],
+-    'qidi-q1-pro': BOARD_DEFS['qidi-x7'],
+-    'qidi-plus4': BOARD_DEFS['qidi-x7']
++    'btt-skrat-v1.0': BOARD_DEFS['btt-skrat']
+ }
+ 
+ def list_boards():
+diff -ru '--exclude=*.pyc' /tmp/klipper-upstream/scripts/spi_flash/fatfs_api.h /home/runner/work/u1-klipper/u1-klipper/scripts/spi_flash/fatfs_api.h
+--- /tmp/klipper-upstream/scripts/spi_flash/fatfs_api.h	2026-03-30 17:21:22.240173586 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/scripts/spi_flash/fatfs_api.h	2026-03-30 17:20:31.518335552 +0000
+@@ -26,8 +26,7 @@
+     uint16_t modified_date;
+     uint16_t modified_time;
+     uint8_t  attrs;
+-    char     name_sfn[13]; // unused, just for compatibility with fatfs lib
+-    char     name[256];
++    char     name[13];
+ };
+ 
+ struct ff_disk_info {
+diff -ru '--exclude=*.pyc' /tmp/klipper-upstream/scripts/spi_flash/fatfs_lib.py /home/runner/work/u1-klipper/u1-klipper/scripts/spi_flash/fatfs_lib.py
+--- /tmp/klipper-upstream/scripts/spi_flash/fatfs_lib.py	2026-03-30 17:21:22.240173586 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/scripts/spi_flash/fatfs_lib.py	2026-03-30 17:20:31.518335552 +0000
+@@ -32,8 +32,7 @@
+         uint16_t modified_date;
+         uint16_t modified_time;
+         uint8_t  attrs;
+-        char     name_sfn[13];
+-        char     name[256];
++        char     name[13];
+     };
+ 
+     struct ff_disk_info {
+diff -ru '--exclude=*.pyc' /tmp/klipper-upstream/scripts/spi_flash/spi_flash.py /home/runner/work/u1-klipper/u1-klipper/scripts/spi_flash/spi_flash.py
+--- /tmp/klipper-upstream/scripts/spi_flash/spi_flash.py	2026-03-30 17:21:22.240173586 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/scripts/spi_flash/spi_flash.py	2026-03-30 17:20:31.518335552 +0000
+@@ -21,6 +21,7 @@
+ import reactor
+ import serialhdl
+ import clocksync
++import mcu
+ 
+ ###########################################################
+ #
+@@ -45,7 +46,7 @@
+         crc ^= b & 0xFF
+         for i in range(8):
+             crc = (crc << 1) ^ poly if crc & 0x80 else crc << 1
+-    # The sdcard protocol likes the crc left justified with a
++    # The sdcard protocol likes the crc left justfied with a
+     # padded bit
+     if not with_padding:
+         return crc
+@@ -73,19 +74,20 @@
+     return ttyname, ttyname
+ 
+ def check_need_convert(board_name, config):
+-    conv_script = config.get("conversion_script")
+-    if conv_script is None:
+-        return
+-    conv_util = os.path.join(fatfs_lib.KLIPPER_DIR, conv_script)
+-    klipper_bin = config['klipper_bin_path']
+-    dest_bin = os.path.join(
++    if board_name.lower().startswith('mks-robin-e3'):
++        # we need to convert this file
++        robin_util = os.path.join(
++            fatfs_lib.KLIPPER_DIR, "scripts/update_mks_robin.py")
++        klipper_bin = config['klipper_bin_path']
++        robin_bin = os.path.join(
+             os.path.dirname(klipper_bin),
+             os.path.basename(config['firmware_path']))
+-    cmd = "%s %s %s %s" % (sys.executable, conv_util, klipper_bin, dest_bin)
+-    output("Converting Klipper binary to custom format...")
+-    os.system(cmd)
+-    output_line("Done")
+-    config['klipper_bin_path'] = dest_bin
++        cmd = "%s %s %s %s" % (sys.executable, robin_util, klipper_bin,
++                               robin_bin)
++        output("Converting Klipper binary to MKS Robin format...")
++        os.system(cmd)
++        output_line("Done")
++        config['klipper_bin_path'] = robin_bin
+ 
+ 
+ ###########################################################
+@@ -111,12 +113,8 @@
+     "config_spi oid=%d pin=%s"                      # Original
+ )
+ SPI_BUS_CMD = "spi_set_bus oid=%d spi_bus=%s mode=%d rate=%d"
+-SW_SPI_BUS_CMDS = (
+-    "spi_set_sw_bus oid=%d miso_pin=%s mosi_pin=%s "
+-    "sclk_pin=%s mode=%d pulse_ticks=%d",
+-    "spi_set_software_bus oid=%d miso_pin=%s mosi_pin=%s "
+-    "sclk_pin=%s mode=%d rate=%d",
+-)
++SW_SPI_BUS_CMD = "spi_set_software_bus oid=%d " \
++    "miso_pin=%s mosi_pin=%s sclk_pin=%s mode=%d rate=%d"
+ SPI_SEND_CMD = "spi_send oid=%c data=%*s"
+ SPI_XFER_CMD = "spi_transfer oid=%c data=%*s"
+ SPI_XFER_RESPONSE = "spi_transfer_response oid=%c response=%*s"
+@@ -142,38 +140,11 @@
+ class MCUConfigError(SPIFlashError):
+     pass
+ 
+-# Wrapper around query commands
+-class CommandQueryWrapper:
+-    def __init__(self, serial, msgformat, respformat, oid=None):
+-        self._serial = serial
+-        self._cmd = serial.get_msgparser().lookup_command(msgformat)
+-        serial.get_msgparser().lookup_command(respformat)
+-        self._response = respformat.split()[0]
+-        self._oid = oid
+-        self._cmd_queue = serial.get_default_command_queue()
+-    def send(self, data=(), minclock=0, reqclock=0, retry=True):
+-        cmds = [self._cmd.encode(data)]
+-        xh = serialhdl.SerialRetryCommand(self._serial, self._response,
+-                                          self._oid)
+-        reqclock = max(minclock, reqclock)
+-        return xh.get_response(cmds, self._cmd_queue, minclock, reqclock, retry)
+-
+-# Wrapper around command sending
+-class CommandWrapper:
+-    def __init__(self, serial, msgformat):
+-        self._serial = serial
+-        msgparser = serial.get_msgparser()
+-        self._cmd = msgparser.lookup_command(msgformat)
+-        self._cmd_queue = serial.get_default_command_queue()
+-    def send(self, data=(), minclock=0, reqclock=0):
+-        cmd = self._cmd.encode(data)
+-        self._serial.raw_send(cmd, minclock, reqclock, self._cmd_queue)
+-
+ class SPIDirect:
+     def __init__(self, ser):
+         self.oid = SPI_OID
+-        self._spi_send_cmd = CommandWrapper(ser, SPI_SEND_CMD)
+-        self._spi_transfer_cmd = CommandQueryWrapper(
++        self._spi_send_cmd = mcu.CommandWrapper(ser, SPI_SEND_CMD)
++        self._spi_transfer_cmd = mcu.CommandQueryWrapper(
+             ser, SPI_XFER_CMD, SPI_XFER_RESPONSE, self.oid)
+ 
+     def spi_send(self, data):
+@@ -185,18 +156,18 @@
+ class SDIODirect:
+     def __init__(self, ser):
+         self.oid = SDIO_OID
+-        self._sdio_send_cmd = CommandQueryWrapper(
++        self._sdio_send_cmd = mcu.CommandQueryWrapper(
+             ser, SDIO_SEND_CMD, SDIO_SEND_CMD_RESPONSE, self.oid)
+-        self._sdio_read_data = CommandQueryWrapper(
++        self._sdio_read_data = mcu.CommandQueryWrapper(
+             ser, SDIO_READ_DATA, SDIO_READ_DATA_RESPONSE, self.oid)
+-        self._sdio_write_data = CommandQueryWrapper(
++        self._sdio_write_data = mcu.CommandQueryWrapper(
+             ser, SDIO_WRITE_DATA, SDIO_WRITE_DATA_RESPONSE, self.oid)
+-        self._sdio_read_data_buffer = CommandQueryWrapper(
++        self._sdio_read_data_buffer = mcu.CommandQueryWrapper(
+             ser, SDIO_READ_DATA_BUFFER, SDIO_READ_DATA_BUFFER_RESPONSE,
+             self.oid)
+-        self._sdio_write_data_buffer = CommandWrapper(ser,
++        self._sdio_write_data_buffer = mcu.CommandWrapper(ser,
+             SDIO_WRITE_DATA_BUFFER)
+-        self._sdio_set_speed = CommandWrapper(ser, SDIO_SET_SPEED)
++        self._sdio_set_speed = mcu.CommandWrapper(ser, SDIO_SET_SPEED)
+ 
+     def sdio_send_cmd(self, cmd, argument, wait):
+         return self._sdio_send_cmd.send([self.oid, cmd, argument, wait])
+@@ -406,7 +377,7 @@
+             (fdate >> 5) & 0xF, fdate & 0x1F, ((fdate >> 9) & 0x7F) + 1980,
+             (ftime >> 11) & 0x1F, (ftime >> 5) & 0x3F, ftime & 0x1F)
+         return {
+-            'name': self.ffi_main.string(finfo.name, 256),
++            'name': self.ffi_main.string(finfo.name, 13),
+             'size': finfo.size,
+             'modified': dstr,
+             'is_dir': bool(finfo.attrs & 0x10),
+@@ -592,7 +563,7 @@
+             # At this time MMC is not supported
+             if len(resp) == 5:
+                 if self.sd_version == 1 and resp[0] == 1:
+-                    # Check acceptable voltage range for V1 cards
++                    # Check acceptable volatage range for V1 cards
+                     if resp[2] != 0xFF:
+                         raise OSError("flash_sdcard: card does not support"
+                                       " 3.3v range")
+@@ -929,7 +900,7 @@
+                                   " out of IDLE after reset")
+             if len(resp) == 4:
+                 if self.sd_version == 1:
+-                    # Check acceptable voltage range for V1 cards
++                    # Check acceptable volatage range for V1 cards
+                     if resp[1] != 0xFF:
+                         raise OSError("flash_sdcard: card does not support"
+                                       " 3.3v range")
+@@ -1280,7 +1251,7 @@
+         # Iterate through backwards compatible response strings
+         for response in GET_CFG_RESPONSES:
+             try:
+-                get_cfg_cmd = CommandQueryWrapper(
++                get_cfg_cmd = mcu.CommandQueryWrapper(
+                     self._serial, GET_CFG_CMD, response)
+                 break
+             except Exception as err:
+@@ -1309,8 +1280,6 @@
+             'spi_bus', self.enumerations.get('bus'))
+         pin_enums = self.enumerations.get('pin')
+         if bus == "swspi":
+-            mcu_freq = self.clocksync.print_time_to_clock(1)
+-            pulse_ticks = mcu_freq//SD_SPI_SPEED
+             cfgpins = self.board_config['spi_pins']
+             pins = [p.strip().upper() for p in cfgpins.split(',') if p.strip()]
+             pin_err_msg = "Invalid Software SPI Pins: %s" % (cfgpins,)
+@@ -1319,28 +1288,30 @@
+             for p in pins:
+                 if p not in pin_enums:
+                     raise SPIFlashError(pin_err_msg)
+-            bus_cmds = [
+-                SW_SPI_BUS_CMDS[0] % (SPI_OID, pins[0], pins[1], pins[2],
+-                                      SPI_MODE, pulse_ticks),
+-                SW_SPI_BUS_CMDS[1] % (SPI_OID, pins[0], pins[1], pins[2],
+-                                      SPI_MODE, SD_SPI_SPEED)
+-            ]
++            bus_cmd = SW_SPI_BUS_CMD % (SPI_OID, pins[0], pins[1], pins[2],
++                                        SPI_MODE, SD_SPI_SPEED)
+         else:
+             if bus not in bus_enums:
+                 raise SPIFlashError("Invalid SPI Bus: %s" % (bus,))
+-            bus_cmds = [
+-                SPI_BUS_CMD % (SPI_OID, bus, SPI_MODE, SD_SPI_SPEED),
+-            ]
++            bus_cmd = SPI_BUS_CMD % (SPI_OID, bus, SPI_MODE, SD_SPI_SPEED)
+         if cs_pin not in pin_enums:
+             raise SPIFlashError("Invalid CS Pin: %s" % (cs_pin,))
+-        cfg_cmds = [ALLOC_OIDS_CMD % (1,),]
++        cfg_cmds = [ALLOC_OIDS_CMD % (1,), bus_cmd]
+         self._serial.send(cfg_cmds[0])
+         spi_cfg_cmds = [
+             SPI_CFG_CMDS[0] % (SPI_OID, cs_pin, False),
+             SPI_CFG_CMDS[1] % (SPI_OID, cs_pin),
+         ]
+-        cfg_cmds.append(self._try_send_command(spi_cfg_cmds))
+-        cfg_cmds.append(self._try_send_command(bus_cmds))
++        for cmd in spi_cfg_cmds:
++            try:
++                self._serial.send(cmd)
++            except self.proto_error:
++                if cmd == spi_cfg_cmds[-1]:
++                    raise
++            else:
++                cfg_cmds.insert(1, cmd)
++                break
++        self._serial.send(bus_cmd)
+         config_crc = zlib.crc32('\n'.join(cfg_cmds).encode()) & 0xffffffff
+         self._serial.send(FINALIZE_CFG_CMD % (config_crc,))
+         config = self.get_mcu_config()
+@@ -1356,16 +1327,6 @@
+             raise SPIFlashError(
+                 "Failed to Initialize SD Card. Is it inserted?")
+ 
+-    def _try_send_command(self, cmd_list):
+-        for cmd in cmd_list:
+-            try:
+-                self._serial.send(cmd)
+-            except self.proto_error:
+-                if cmd == cmd_list[-1]:
+-                    raise
+-            else:
+-                return cmd
+-
+     def _configure_mcu_sdiobus(self, printfunc=logging.info):
+         bus = self.board_config['sdio_bus']
+         bus_enums = self.enumerations.get(
+@@ -1406,32 +1367,7 @@
+         input_sha = hashlib.sha1()
+         sd_sha = hashlib.sha1()
+         klipper_bin_path = self.board_config['klipper_bin_path']
+-        add_ts = self.board_config.get('requires_unique_fw_name', False)
+         fw_path = self.board_config.get('firmware_path', "firmware.bin")
+-        if add_ts:
+-            fw_dir = os.path.dirname(fw_path)
+-            fw_name, fw_ext = os.path.splitext(os.path.basename(fw_path))
+-            ts = time.strftime("%Y%m%d%H%M%S")
+-            fw_name_ts = f"{ts}{fw_name}{fw_ext}"
+-            if fw_dir:
+-                fw_path = os.path.join(fw_dir, fw_name_ts)
+-            else:
+-                fw_path = fw_name_ts
+-            list_dir = fw_dir if fw_dir else ""
+-            try:
+-                output_line("\nSD Card FW Directory Contents:")
+-                for f in self.fatfs.list_sd_directory(list_dir):
+-                    fname = f['name'].decode('utf-8')
+-                    if fname.endswith(fw_ext):
+-                        self.fatfs.remove_item(
+-                            os.path.join(list_dir, fname)
+-                        )
+-                        output_line(
+-                            "Old firmware file %s found and deleted"
+-                            % (fname,)
+-                        )
+-            except Exception:
+-                logging.exception("Error cleaning old firmware files")
+         try:
+             with open(klipper_bin_path, 'rb') as local_f:
+                 with self.fatfs.open_file(fw_path, "wb") as sd_f:
+@@ -1694,7 +1630,7 @@
+     logging.basicConfig(level=log_level)
+     flash_args = board_defs.lookup_board(args.board)
+     if flash_args is None:
+-        output_line("Unable to find definition for board: %s" % (args.board,))
++        output_line("Unable to find defintion for board: %s" % (args.board,))
+         sys.exit(-1)
+     flash_args['device'] = args.device
+     flash_args['baud'] = args.baud
+Only in /tmp/klipper-upstream/scripts/: tests-requirements.txt
+diff -ru '--exclude=*.pyc' /tmp/klipper-upstream/scripts/update_chitu.py /home/runner/work/u1-klipper/u1-klipper/scripts/update_chitu.py
+--- /tmp/klipper-upstream/scripts/update_chitu.py	2026-03-30 17:21:22.240173586 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/scripts/update_chitu.py	2026-03-30 17:20:31.518335552 +0000
+@@ -76,7 +76,7 @@
+ 
+     xor_crc = 0xef3d4323;
+ 
+-    # the input file is expected to be in chunks of 0x800
++    # the input file is exepcted to be in chunks of 0x800
+     # so round the size
+     while len(input_file) % block_size != 0:
+         input_file.extend(b'0x0')
+diff -ru '--exclude=*.pyc' /tmp/klipper-upstream/scripts/whconsole.py /home/runner/work/u1-klipper/u1-klipper/scripts/whconsole.py
+--- /tmp/klipper-upstream/scripts/whconsole.py	2026-03-30 17:21:22.240173586 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/scripts/whconsole.py	2026-03-30 17:20:31.518335552 +0000
+@@ -38,25 +38,25 @@
+         self.poll = select.poll()
+         self.poll.register(sys.stdin, select.POLLIN | select.POLLHUP)
+         self.poll.register(self.webhook_socket, select.POLLIN | select.POLLHUP)
+-        self.kbd_data = self.socket_data = b""
++        self.kbd_data = self.socket_data = ""
+     def process_socket(self):
+         data = self.webhook_socket.recv(4096)
+         if not data:
+             sys.stderr.write("Socket closed\n")
+             sys.exit(0)
+-        parts = data.split(b'\x03')
++        parts = data.split('\x03')
+         parts[0] = self.socket_data + parts[0]
+         self.socket_data = parts.pop()
+         for line in parts:
+             sys.stdout.write("GOT: %s\n" % (line,))
+     def process_kbd(self):
+         data = os.read(self.kbd_fd, 4096)
+-        parts = data.split(b'\n')
++        parts = data.split('\n')
+         parts[0] = self.kbd_data + parts[0]
+         self.kbd_data = parts.pop()
+         for line in parts:
+             line = line.strip()
+-            if not line or line.startswith(b'#'):
++            if not line or line.startswith('#'):
+                 continue
+             try:
+                 m = json.loads(line)
+@@ -65,7 +65,7 @@
+                 continue
+             cm = json.dumps(m, separators=(',', ':'))
+             sys.stdout.write("SEND: %s\n" % (cm,))
+-            self.webhook_socket.send(cm.encode() + b"\x03")
++            self.webhook_socket.send("%s\x03" % (cm,))
+     def run(self):
+         while 1:
+             res = self.poll.poll(1000.)
