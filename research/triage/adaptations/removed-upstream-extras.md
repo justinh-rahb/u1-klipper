@@ -4,7 +4,7 @@
 Drop
 
 ## Fork Change Summary
-The fork is missing 14 upstream extras modules that exist in current upstream
+The fork is missing 13 upstream extras modules that exist in current upstream
 Klipper `HEAD`. These were present in the upstream Klipper version the fork was
 based on (or added to upstream after the fork diverged), but were never
 incorporated into the fork — likely because none of them are used by U1 hardware.
@@ -27,13 +27,12 @@ The affected modules are:
 | C33 | `static_pwm_clock` | `klippy/extras/static_pwm_clock.py` | Not used on U1 |
 | C34 | `temperature_probe` | `klippy/extras/temperature_probe.py` | Not used on U1 |
 | C35 | `trigger_analog` | `klippy/extras/trigger_analog.py` | Not used; eddy current dep |
-| C36 | `static_digital_output` | `klippy/extras/static_digital_output.py` | Not used on U1 |
 
 `motion_queuing.py` (C32) is covered separately because its restoration is
 coupled to the `toolhead.py` adaptation (Adapt item B3).
 
 ## Upstream Solution
-All 14 files listed above are present in upstream Klipper `HEAD` (`2f05309d`).
+All 13 files listed above are present in upstream Klipper `HEAD` (`2f05309d`).
 They can be copied verbatim.
 
 Notable dependency chains:

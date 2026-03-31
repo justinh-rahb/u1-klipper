@@ -67,7 +67,7 @@ All raw diffs are stored in [`/research/raw/`](raw/) with descriptive prefixes:
 | Category | Count | Details |
 |----------|-------|---------|
 | **New klippy/extras/ modules** | 26 | Filament system (6), communication (2), machine management (3), hardware sensors (5), calibration/homing (5), auxiliary (5) |
-| **Upstream-only extras removed from fork** | 15 | `ads1220`, `ads1x1x`, `bmi160`, `canbus_stats`, `garbage_collection`, `hx71x`, `icm20948`, `lis3dh`, `load_cell`, `load_cell_probe`, `motion_queuing`, `static_pwm_clock`, `temperature_probe`, `trigger_analog`, `static_digital_output` |
+| **Upstream-only extras removed from fork** | 14 | `ads1220`, `ads1x1x`, `bmi160`, `canbus_stats`, `garbage_collection`, `hx71x`, `icm20948`, `lis3dh`, `load_cell`, `load_cell_probe`, `motion_queuing`, `static_pwm_clock`, `temperature_probe`, `trigger_analog` |
 | **Upstream extras significantly modified** | 5 | `virtual_sdcard` (+1919 lines), `bed_mesh` (+961), `resonance_tester` (+772), `heaters` (+670), `probe` (+502) |
 | **Upstream extras with minor/medium changes** | ~85 | API reversions, U1-specific additions, signature changes |
 | **New core klippy/ modules** | 4 | `coded_exception`, `exception_manager`, `printer_device_scan`, `queuefile` |
@@ -129,7 +129,7 @@ The fork diverges from upstream in four independent dimensions:
 
 3. **Hard-coded paths** — `/home/lava/printer_data/klippy/`, `/oem/.bed_202507`, `/userdata/.bed_202507`, `/dev/ttyS6`, USB by-path addresses are all U1-specific and scattered throughout the codebase.
 
-4. **Missing upstream features** — 15 upstream extras are absent (load cell, garbage collection, new sensors, etc.); the chelper `steppersync` refactor and `kin_generic` are missing. Upstream configs referencing these will fail.
+4. **Missing upstream features** — 14 upstream extras are absent (load cell, garbage collection, new sensors, etc.); the chelper `steppersync` refactor and `kin_generic` are missing. Upstream configs referencing these will fail.
 
 **Estimated rebase effort:** High (weeks). A clean approach would be to start from current upstream and re-apply U1-specific features as a set of patches, rather than trying to forward-port the existing fork.
 
@@ -269,21 +269,21 @@ Cross-referenced all 104 documented fork divergences against upstream Klipper
 
 | Tier | Label | Count | Description |
 |------|-------|-------|-------------|
-| **1** | **Drop** | 16 | Upstream fully covers this; restore from upstream |
+| **1** | **Drop** | 17 | Upstream fully covers this; restore from upstream |
 | **2** | **Adapt** | 14 | Upstream covers the need differently; migrate to upstream approach |
 | **3** | **Layer** | 23 | Upstream partially covers it; maintain a reduced shim |
-| **4** | **Keep** | 51 | No upstream coverage; permanent fork divergence |
+| **4** | **Keep** | 52 | No upstream coverage; permanent fork divergence |
 | | **Total** | **104** | |
 
 ### Quick Wins (Tier 1)
-16 items can be addressed immediately with low risk:
-- Restore 14 absent upstream extras files (none affect U1 hardware)
+17 items can be addressed immediately with low risk:
+- Restore 13 absent upstream extras files (none affect U1 hardware)
 - Restore `chelper/kin_generic.c`
 - Restore `reactor.py::assert_no_pause`
 - Restore `buttons.py::DebounceButton`
 - Restore `stepper_enable.py` mux command pattern
 
-### Permanent Fork Surface (Tier 4 — 51 items)
+### Permanent Fork Surface (Tier 4 — 52 items)
 The fork must maintain these indefinitely:
 - **PLR system** — Power-loss recovery (no upstream equivalent)
 - **Filament system** — 6 modules for U1's filament routing hardware

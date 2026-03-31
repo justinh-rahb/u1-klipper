@@ -10,10 +10,10 @@
 
 | Tier | Label | Count | Meaning |
 |------|-------|-------|---------|
-| **1** | Drop | **16** | Upstream fully covers this; fork patch can be removed |
+| **1** | Drop | **17** | Upstream fully covers this; fork patch can be removed |
 | **2** | Adapt | **14** | Upstream covers the need differently; replace fork patch with upstream approach |
 | **3** | Layer | **23** | Upstream partially covers it; keep a reduced patch or shim |
-| **4** | Keep | **51** | No upstream coverage; must maintain as fork patch |
+| **4** | Keep | **52** | No upstream coverage; must maintain as fork patch |
 | | **Total** | **104** | |
 
 ---
@@ -29,7 +29,7 @@ file restore or a simple method restoration with no behavioural impact on U1 har
 | **B7** | `reactor.py` `assert_no_pause` absent | Copy method from upstream; dormant until B3 is done |
 | **C11** | `buttons.py` `DebounceButton` absent | Copy class from upstream; additive |
 | **C12** | `stepper_enable.py` mux→plain reversion | Restore `register_mux_command` pattern |
-| **C22–C31, C33–C36** | 14 upstream extras absent | Copy files from upstream; none referenced by U1 config |
+| **C22–C31, C33–C35** | 13 upstream extras absent | Copy files from upstream; none referenced by U1 config |
 
 **Combined estimated effort:** 1–2 developer days.  
 **Risk:** Low for all. These add capabilities without changing existing behaviour.
@@ -120,7 +120,7 @@ file restore or a simple method restoration with no behavioural impact on U1 har
 | C33 | `static_pwm_clock.py` — removed | **1** | [removed-upstream-extras.md](adaptations/removed-upstream-extras.md) |
 | C34 | `temperature_probe.py` — removed | **1** | [removed-upstream-extras.md](adaptations/removed-upstream-extras.md) |
 | C35 | `trigger_analog.py` — removed | **1** | [removed-upstream-extras.md](adaptations/removed-upstream-extras.md) |
-| C36 | `static_digital_output.py` — removed | **1** | [removed-upstream-extras.md](adaptations/removed-upstream-extras.md) |
+| C36 | `static_digital_output.py` — **present in fork** | 4 | — |
 
 ### D — Fork-Exclusive Extras (all Tier 4)
 
@@ -157,7 +157,7 @@ file restore or a simple method restoration with no behavioural impact on U1 har
 | ID | Files | Tier |
 |----|-------|------|
 | F1–F4 | AT32F403A and AT32F415RC MCU support | 4 |
-| F5–F6 | Inductance coil firmware (Timer2) | 4 |
+| F5–F6 | Inductance coil firmware (TMR2 + TMR5) | 4 |
 | F7 | Power-loss check flash storage | 4 |
 
 ### G — lib/ (all Tier 4)
@@ -192,7 +192,7 @@ per unit of effort.
 ### Sprint 1 — Quick Wins (1–2 days, Low Risk)
 Address all Tier 1 items independently. No architecture changes required.
 
-1. **C22–C31, C33–C36**: Restore 14 absent upstream extras files
+1. **C22–C31, C33–C35**: Restore 13 absent upstream extras files
    — see [removed-upstream-extras.md](adaptations/removed-upstream-extras.md)
 2. **A4**: Restore `kin_generic.c`
    — see [chelper-kin-generic.md](adaptations/chelper-kin-generic.md)
