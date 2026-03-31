@@ -1,0 +1,3185 @@
+diff -ru '--exclude=*.pyc' /tmp/klipper-upstream/klippy/kinematics/cartesian.py /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/cartesian.py
+--- /tmp/klipper-upstream/klippy/kinematics/cartesian.py	2026-03-30 17:21:21.962460385 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/cartesian.py	2026-03-30 17:20:31.219017877 +0000
+@@ -18,8 +18,8 @@
+         for rail, axis in zip(self.rails, 'xyz'):
+             rail.setup_itersolve('cartesian_stepper_alloc', axis.encode())
+         ranges = [r.get_range() for r in self.rails]
+-        self.axes_min = toolhead.Coord([r[0] for r in ranges])
+-        self.axes_max = toolhead.Coord([r[1] for r in ranges])
++        self.axes_min = toolhead.Coord(*[r[0] for r in ranges], e=0.)
++        self.axes_max = toolhead.Coord(*[r[1] for r in ranges], e=0.)
+         self.dc_module = None
+         if config.has_section('dual_carriage'):
+             dc_config = config.getsection('dual_carriage')
+@@ -29,13 +29,19 @@
+             self.rails.append(stepper.LookupMultiRail(dc_config))
+             self.rails[3].setup_itersolve('cartesian_stepper_alloc',
+                                           dc_axis.encode())
++            dc_rail_0 = idex_modes.DualCarriagesRail(
++                    self.rails[self.dual_carriage_axis],
++                    axis=self.dual_carriage_axis, active=True)
++            dc_rail_1 = idex_modes.DualCarriagesRail(
++                    self.rails[3], axis=self.dual_carriage_axis, active=False)
+             self.dc_module = idex_modes.DualCarriages(
+-                    self.printer, [self.rails[self.dual_carriage_axis]],
+-                    [self.rails[3]], axes=[self.dual_carriage_axis],
+-                    safe_dist=[dc_config.getfloat(
+-                        'safe_distance', None, minval=0.)])
++                    dc_config, dc_rail_0, dc_rail_1,
++                    axis=self.dual_carriage_axis)
+         for s in self.get_steppers():
+             s.set_trapq(toolhead.get_trapq())
++            toolhead.register_step_generator(s.generate_steps)
++        self.printer.register_event_handler("stepper_enable:motor_off",
++                                            self._motor_off)
+         # Setup boundary checks
+         max_velocity, max_accel = toolhead.get_max_velocity()
+         self.max_z_velocity = config.getfloat('max_z_velocity', max_velocity,
+@@ -48,10 +54,9 @@
+     def calc_position(self, stepper_positions):
+         rails = self.rails
+         if self.dc_module:
+-            dc_rail = self.dc_module.get_primary_rail(self.dual_carriage_axis) \
+-                    or self.rails[self.dual_carriage_axis]
+-            rails = (rails[:self.dual_carriage_axis] +
+-                     [dc_rail] + rails[self.dual_carriage_axis+1:])
++            primary_rail = self.dc_module.get_primary_rail().get_rail()
++            rails = (rails[:self.dc_module.axis] +
++                     [primary_rail] + rails[self.dc_module.axis+1:])
+         return [stepper_positions[rail.get_name()] for rail in rails]
+     def update_limits(self, i, range):
+         l, h = self.limits[i]
+@@ -62,18 +67,15 @@
+     def set_position(self, newpos, homing_axes):
+         for i, rail in enumerate(self.rails):
+             rail.set_position(newpos)
+-        for axis_name in homing_axes:
+-            axis = "xyz".index(axis_name)
+-            rail = None
+-            if self.dc_module and axis == self.dual_carriage_axis:
+-                rail = self.dc_module.get_primary_rail(self.dual_carriage_axis)
+-            if rail is None:
++        for axis in homing_axes:
++            if self.dc_module and axis == self.dc_module.axis:
++                rail = self.dc_module.get_primary_rail().get_rail()
++            else:
+                 rail = self.rails[axis]
+             self.limits[axis] = rail.get_range()
+-    def clear_homing_state(self, clear_axes):
+-        for axis, axis_name in enumerate("xyz"):
+-            if axis_name in clear_axes:
+-                self.limits[axis] = (1.0, -1.0)
++    def note_z_not_homed(self):
++        # Helper for Safe Z Home
++        self.limits[2] = (1.0, -1.0)
+     def home_axis(self, homing_state, axis, rail):
+         # Determine movement
+         position_min, position_max = rail.get_range()
+@@ -91,9 +93,11 @@
+         # Each axis is homed independently and in order
+         for axis in homing_state.get_axes():
+             if self.dc_module is not None and axis == self.dual_carriage_axis:
+-                self.dc_module.home(homing_state, self.dual_carriage_axis)
++                self.dc_module.home(homing_state)
+             else:
+                 self.home_axis(homing_state, axis, self.rails[axis])
++    def _motor_off(self, print_time):
++        self.limits = [(1.0, -1.0)] * 3
+     def _check_endstops(self, move):
+         end_pos = move.end_pos
+         for i in (0, 1, 2):
+diff -ru '--exclude=*.pyc' /tmp/klipper-upstream/klippy/kinematics/corexy.py /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/corexy.py
+--- /tmp/klipper-upstream/klippy/kinematics/corexy.py	2026-03-30 17:21:21.962460385 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/corexy.py	2026-03-30 17:20:31.219017877 +0000
+@@ -20,6 +20,9 @@
+         self.rails[2].setup_itersolve('cartesian_stepper_alloc', b'z')
+         for s in self.get_steppers():
+             s.set_trapq(toolhead.get_trapq())
++            toolhead.register_step_generator(s.generate_steps)
++        config.get_printer().register_event_handler("stepper_enable:motor_off",
++                                                    self._motor_off)
+         # Setup boundary checks
+         max_velocity, max_accel = toolhead.get_max_velocity()
+         self.max_z_velocity = config.getfloat(
+@@ -28,8 +31,9 @@
+             'max_z_accel', max_accel, above=0., maxval=max_accel)
+         self.limits = [(1.0, -1.0)] * 3
+         ranges = [r.get_range() for r in self.rails]
+-        self.axes_min = toolhead.Coord([r[0] for r in ranges])
+-        self.axes_max = toolhead.Coord([r[1] for r in ranges])
++        self.axes_min = toolhead.Coord(*[r[0] for r in ranges], e=0.)
++        self.axes_max = toolhead.Coord(*[r[1] for r in ranges], e=0.)
++        self.ignore_check_move_limit = False
+     def get_steppers(self):
+         return [s for rail in self.rails for s in rail.get_steppers()]
+     def calc_position(self, stepper_positions):
+@@ -38,12 +42,15 @@
+     def set_position(self, newpos, homing_axes):
+         for i, rail in enumerate(self.rails):
+             rail.set_position(newpos)
+-            if "xyz"[i] in homing_axes:
++            if i in homing_axes:
+                 self.limits[i] = rail.get_range()
+-    def clear_homing_state(self, clear_axes):
+-        for axis, axis_name in enumerate("xyz"):
+-            if axis_name in clear_axes:
+-                self.limits[axis] = (1.0, -1.0)
++    def note_z_not_homed(self):
++        # Helper for Safe Z Home
++        self.limits[2] = (1.0, -1.0)
++    def note_x_not_homed(self):
++        self.limits[0] = (1.0, -1.0)
++    def note_y_not_homed(self):
++        self.limits[1] = (1.0, -1.0)
+     def home(self, homing_state):
+         # Each axis is homed independently and in order
+         for axis in homing_state.get_axes():
+@@ -60,26 +67,31 @@
+                 forcepos[axis] += 1.5 * (position_max - hi.position_endstop)
+             # Perform homing
+             homing_state.home_rails([rail], forcepos, homepos)
++    def _motor_off(self, print_time):
++        self.limits = [(1.0, -1.0)] * 3
+     def _check_endstops(self, move):
+         end_pos = move.end_pos
++        axis_names = 'XYZ'
+         for i in (0, 1, 2):
+             if (move.axes_d[i]
+                 and (end_pos[i] < self.limits[i][0]
+                      or end_pos[i] > self.limits[i][1])):
+                 if self.limits[i][0] > self.limits[i][1]:
+-                    raise move.move_error("Must home axis first")
+-                raise move.move_error()
++                    raise move.move_error(f"Must home {axis_names[i]} axis first")
++                raise move.move_error(f"Move out of range on {axis_names[i]} axis")
+     def check_move(self, move):
+-        limits = self.limits
+-        xpos, ypos = move.end_pos[:2]
+-        if (xpos < limits[0][0] or xpos > limits[0][1]
+-            or ypos < limits[1][0] or ypos > limits[1][1]):
+-            self._check_endstops(move)
++        if not self.ignore_check_move_limit:
++            limits = self.limits
++            xpos, ypos = move.end_pos[:2]
++            if (xpos < limits[0][0] or xpos > limits[0][1]
++                or ypos < limits[1][0] or ypos > limits[1][1]):
++                self._check_endstops(move)
+         if not move.axes_d[2]:
+             # Normal XY move - use defaults
+             return
+         # Move with Z - update velocity and accel for slower Z axis
+-        self._check_endstops(move)
++        if not self.ignore_check_move_limit:
++            self._check_endstops(move)
+         z_ratio = move.move_d / abs(move.axes_d[2])
+         move.limit_speed(
+             self.max_z_velocity * z_ratio, self.max_z_accel * z_ratio)
+@@ -91,5 +103,9 @@
+             'axis_maximum': self.axes_max,
+         }
+ 
++    def set_ignore_check_move_limit(self, enable):
++        # WARNING: Enabling this will disable the detection of XYZ movement coordinates. USE WITH CAUTION!!!
++        self.ignore_check_move_limit = not not enable
++
+ def load_kinematics(toolhead, config):
+     return CoreXYKinematics(toolhead, config)
+diff -ru '--exclude=*.pyc' /tmp/klipper-upstream/klippy/kinematics/corexz.py /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/corexz.py
+--- /tmp/klipper-upstream/klippy/kinematics/corexz.py	2026-03-30 17:21:21.962460385 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/corexz.py	2026-03-30 17:20:31.219017877 +0000
+@@ -20,6 +20,9 @@
+         self.rails[2].setup_itersolve('corexz_stepper_alloc', b'-')
+         for s in self.get_steppers():
+             s.set_trapq(toolhead.get_trapq())
++            toolhead.register_step_generator(s.generate_steps)
++        config.get_printer().register_event_handler("stepper_enable:motor_off",
++                                                    self._motor_off)
+         # Setup boundary checks
+         max_velocity, max_accel = toolhead.get_max_velocity()
+         self.max_z_velocity = config.getfloat(
+@@ -28,8 +31,8 @@
+             'max_z_accel', max_accel, above=0., maxval=max_accel)
+         self.limits = [(1.0, -1.0)] * 3
+         ranges = [r.get_range() for r in self.rails]
+-        self.axes_min = toolhead.Coord([r[0] for r in ranges])
+-        self.axes_max = toolhead.Coord([r[1] for r in ranges])
++        self.axes_min = toolhead.Coord(*[r[0] for r in ranges], e=0.)
++        self.axes_max = toolhead.Coord(*[r[1] for r in ranges], e=0.)
+     def get_steppers(self):
+         return [s for rail in self.rails for s in rail.get_steppers()]
+     def calc_position(self, stepper_positions):
+@@ -38,12 +41,11 @@
+     def set_position(self, newpos, homing_axes):
+         for i, rail in enumerate(self.rails):
+             rail.set_position(newpos)
+-            if "xyz"[i] in homing_axes:
++            if i in homing_axes:
+                 self.limits[i] = rail.get_range()
+-    def clear_homing_state(self, clear_axes):
+-        for axis, axis_name in enumerate("xyz"):
+-            if axis_name in clear_axes:
+-                self.limits[axis] = (1.0, -1.0)
++    def note_z_not_homed(self):
++        # Helper for Safe Z Home
++        self.limits[2] = (1.0, -1.0)
+     def home(self, homing_state):
+         # Each axis is homed independently and in order
+         for axis in homing_state.get_axes():
+@@ -60,6 +62,8 @@
+                 forcepos[axis] += 1.5 * (position_max - hi.position_endstop)
+             # Perform homing
+             homing_state.home_rails([rail], forcepos, homepos)
++    def _motor_off(self, print_time):
++        self.limits = [(1.0, -1.0)] * 3
+     def _check_endstops(self, move):
+         end_pos = move.end_pos
+         for i in (0, 1, 2):
+diff -ru '--exclude=*.pyc' /tmp/klipper-upstream/klippy/kinematics/delta.py /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/delta.py
+--- /tmp/klipper-upstream/klippy/kinematics/delta.py	2026-03-30 17:21:21.962460385 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/delta.py	2026-03-30 17:20:31.219017877 +0000
+@@ -23,6 +23,8 @@
+             stepper_configs[2], need_position_minmax = False,
+             default_position_endstop=a_endstop)
+         self.rails = [rail_a, rail_b, rail_c]
++        config.get_printer().register_event_handler("stepper_enable:motor_off",
++                                                    self._motor_off)
+         # Setup max velocity
+         self.max_velocity, self.max_accel = toolhead.get_max_velocity()
+         self.max_z_velocity = config.getfloat(
+@@ -52,6 +54,7 @@
+             r.setup_itersolve('delta_stepper_alloc', a, t[0], t[1])
+         for s in self.get_steppers():
+             s.set_trapq(toolhead.get_trapq())
++            toolhead.register_step_generator(s.generate_steps)
+         # Setup boundary checks
+         self.need_home = True
+         self.limit_xy2 = -1.
+@@ -85,9 +88,9 @@
+                      " and %.2fmm)"
+                      % (max_xy, math.sqrt(self.slow_xy2),
+                         math.sqrt(self.very_slow_xy2)))
+-        self.axes_min = toolhead.Coord((-max_xy, -max_xy, self.min_z))
+-        self.axes_max = toolhead.Coord((max_xy, max_xy, self.max_z))
+-        self.set_position([0., 0., 0.], "")
++        self.axes_min = toolhead.Coord(-max_xy, -max_xy, self.min_z, 0.)
++        self.axes_max = toolhead.Coord(max_xy, max_xy, self.max_z, 0.)
++        self.set_position([0., 0., 0.], ())
+     def get_steppers(self):
+         return [s for rail in self.rails for s in rail.get_steppers()]
+     def _actuator_to_cartesian(self, spos):
+@@ -100,19 +103,17 @@
+         for rail in self.rails:
+             rail.set_position(newpos)
+         self.limit_xy2 = -1.
+-        if homing_axes == "xyz":
++        if tuple(homing_axes) == (0, 1, 2):
+             self.need_home = False
+-    def clear_homing_state(self, clear_axes):
+-        # Clearing homing state for each axis individually is not implemented
+-        if clear_axes:
+-            self.limit_xy2 = -1
+-            self.need_home = True
+     def home(self, homing_state):
+         # All axes are homed simultaneously
+         homing_state.set_axes([0, 1, 2])
+         forcepos = list(self.home_position)
+         forcepos[2] = -1.5 * math.sqrt(max(self.arm2)-self.max_xy2)
+         homing_state.home_rails(self.rails, forcepos, self.home_position)
++    def _motor_off(self, print_time):
++        self.limit_xy2 = -1.
++        self.need_home = True
+     def check_move(self, move):
+         end_pos = move.end_pos
+         end_xy2 = end_pos[0]**2 + end_pos[1]**2
+diff -ru '--exclude=*.pyc' /tmp/klipper-upstream/klippy/kinematics/deltesian.py /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/deltesian.py
+--- /tmp/klipper-upstream/klippy/kinematics/deltesian.py	2026-03-30 17:21:21.962460385 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/deltesian.py	2026-03-30 17:20:31.219017877 +0000
+@@ -17,10 +17,10 @@
+         self.rails = [None] * 3
+         stepper_configs = [config.getsection('stepper_' + s)
+                                     for s in ['left', 'right', 'y']]
+-        self.rails[0] = stepper.LookupRail(
++        self.rails[0] = stepper.PrinterRail(
+             stepper_configs[0], need_position_minmax = False)
+         def_pos_es = self.rails[0].get_homing_info().position_endstop
+-        self.rails[1] = stepper.LookupRail(
++        self.rails[1] = stepper.PrinterRail(
+             stepper_configs[1], need_position_minmax = False,
+             default_position_endstop = def_pos_es)
+         self.rails[2] = stepper.LookupMultiRail(stepper_configs[2])
+@@ -40,6 +40,9 @@
+         self.rails[2].setup_itersolve('cartesian_stepper_alloc', b'y')
+         for s in self.get_steppers():
+             s.set_trapq(toolhead.get_trapq())
++            toolhead.register_step_generator(s.generate_steps)
++        config.get_printer().register_event_handler(
++            "stepper_enable:motor_off", self._motor_off)
+         self.limits = [(1.0, -1.0)] * 3
+         # X axis limits
+         min_angle = config.getfloat('min_angle', MIN_ANGLE,
+@@ -83,10 +86,10 @@
+                                               above=0., maxval=max_velocity)
+         self.max_z_accel = config.getfloat('max_z_accel', max_accel,
+                                            above=0., maxval=max_accel)
+-        self.axes_min = toolhead.Coord([l[0] for l in self.limits])
+-        self.axes_max = toolhead.Coord([l[1] for l in self.limits])
++        self.axes_min = toolhead.Coord(*[l[0] for l in self.limits], e=0.)
++        self.axes_max = toolhead.Coord(*[l[1] for l in self.limits], e=0.)
+         self.homed_axis = [False] * 3
+-        self.set_position([0., 0., 0.], "")
++        self.set_position([0., 0., 0.], ())
+     def get_steppers(self):
+         return [s for rail in self.rails for s in rail.get_steppers()]
+     def _actuator_to_cartesian(self, sp):
+@@ -112,13 +115,8 @@
+     def set_position(self, newpos, homing_axes):
+         for rail in self.rails:
+             rail.set_position(newpos)
+-        for axis_name in homing_axes:
+-            axis = "xyz".index(axis_name)
+-            self.homed_axis[axis] = True
+-    def clear_homing_state(self, clear_axes):
+-        for axis, axis_name in enumerate("xyz"):
+-            if axis_name in clear_axes:
+-                self.homed_axis[axis] = False
++        for n in homing_axes:
++            self.homed_axis[n] = True
+     def home(self, homing_state):
+         homing_axes = homing_state.get_axes()
+         home_xz = 0 in homing_axes or 2 in homing_axes
+@@ -144,6 +142,8 @@
+             else:
+                 forcepos[1] += 1.5 * (position_max - hi.position_endstop)
+             homing_state.home_rails([self.rails[2]], forcepos, homepos)
++    def _motor_off(self, print_time):
++        self.homed_axis = [False] * 3
+     def check_move(self, move):
+         limits = list(map(list, self.limits))
+         spos, epos = move.start_pos, move.end_pos
+diff -ru '--exclude=*.pyc' /tmp/klipper-upstream/klippy/kinematics/extruder.py /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/extruder.py
+--- /tmp/klipper-upstream/klippy/kinematics/extruder.py	2026-03-30 17:21:21.962460385 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/extruder.py	2026-03-30 17:20:31.219336509 +0000
+@@ -1,15 +1,249 @@
+ # Code for handling printer nozzle extruders
+ #
+-# Copyright (C) 2016-2025  Kevin O'Connor <kevin@koconnor.net>
++# Copyright (C) 2016-2022  Kevin O'Connor <kevin@koconnor.net>
+ #
+ # This file may be distributed under the terms of the GNU GPLv3 license.
+ import math, logging
+-import stepper, chelper
++import stepper, chelper, coded_exception, queuefile
++import os, json, copy
++
++class ExtruderParkAction(Exception):
++    pass
++
++class ExtruderUnknownParkStatus(Exception):
++    pass
++
++class ExtruderPickAbnormal(Exception):
++    pass
++
++PARK_DETECTOR_LOOP_CHECK_INTERVAL = 0.1
++PARK_DETECTOR_MAX_EXCEPTION_COUNT = 10
++MAX_ALLOWED_DIFFERENCE = 3.0
++STRUCTURED_CODE_LIST = []
++
++EXTRUDER_SWITCH_RECORDER = "extruder_switch_recorder.json"
++
++class ExtruderSwitchRecorder:
++    def __init__(self, config):
++        self.printer = config.get_printer()
++        self.reactor = self.printer.get_reactor()
++        # Use persistent directory for config file
++        config_dir = self.printer.get_snapmaker_config_dir("persistent")
++        self.file_path = os.path.join(config_dir, EXTRUDER_SWITCH_RECORDER)
++        # Old config path for migration
++        self.old_file_path = os.path.join(self.printer.get_snapmaker_config_dir(), EXTRUDER_SWITCH_RECORDER)
++        self.save_interval = config.getfloat('save_interval', 30.0)
++        self.individual_maintenance_threshold = config.getint('individual_maintenance_threshold', 25100)
++        self.total_maintenance_threshold = config.getint('total_maintenance_threshold', 100000)
++        self.maintenance_exception_raised = False
++
++        # Migrate data from old location if needed
++        self._migrate_data_if_needed()
++
++        # Load existing data
++        self.data = self._load_data()
++        self.allow_save = False
++        self.dirty = False  # Flag to track unsaved changes
++
++        # Register G-code commands
++        self.gcode = self.printer.lookup_object('gcode')
++        self.gcode.register_command('GET_EXTRUDER_SWITCH_RECORDER', self.cmd_GET_EXTRUDER_SWITCH_RECORDER)
++        self.gcode.register_command('RESET_EXTRUDER_SWITCH_RECORDER', self.cmd_RESET_EXTRUDER_SWITCH_RECORDER)
++        self.gcode.register_command('RESET_EXTRUDER_MAINTENANCE_COUNT', self.cmd_RESET_EXTRUDER_MAINTENANCE_COUNT)
++
++        # Register periodic save timer
++        self.timer = self.reactor.register_timer(self._on_save_timer)
++        self.printer.register_event_handler("klippy:ready", self._handle_ready)
++        self.printer.register_event_handler("klippy:shutdown", self._handle_shutdown)
++
++    def _handle_ready(self):
++        self.allow_save = True
++        self.reactor.update_timer(self.timer, self.reactor.NOW)
++
++    def _handle_shutdown(self):
++        self.allow_save = False
++        self.reactor.update_timer(self.timer, self.reactor.NEVER)
++
++    def _check_maintenance_status(self):
++        """Check if maintenance is needed for any extruder or in total"""
++        maintenance_needed = False
++        warning_message = "Maintenance recommended for extruders:\n"
++
++        # Check individual extruder thresholds
++        for extruder_name in sorted(self.data.keys()):
++            self._init_extruder_entry(extruder_name)
++            switch_count_since_maintenance = self.data[extruder_name]['switch_count'] - self.data[extruder_name]['last_maintenance_count']
++            if switch_count_since_maintenance >= self.individual_maintenance_threshold:
++                maintenance_needed = True
++                warning_message += f"  {extruder_name}: {switch_count_since_maintenance} switches since last maintenance\n"
++
++        # Check total threshold
++        total_switch_count = sum(self.data[ext_name].get('switch_count', 0) for ext_name in self.data.keys())
++        total_maintenance_count = sum(self.data[ext_name].get('last_maintenance_count', 0) for ext_name in self.data.keys())
++        total_switches_since_maintenance = total_switch_count - total_maintenance_count
++        if total_switches_since_maintenance >= self.total_maintenance_threshold:
++            maintenance_needed = True
++            warning_message += f"  Total: {total_switches_since_maintenance} switches since last maintenance (threshold: {self.total_maintenance_threshold})\n"
++
++        if maintenance_needed:
++            logging.info(f"[ExtruderSwitchRecorder] {warning_message}")
++
++        return maintenance_needed
++
++    def _migrate_data_if_needed(self):
++        """Migrate data from old location to new location if needed"""
++        # Only migrate if new file doesn't exist but old file does
++        if not os.path.exists(self.file_path) and os.path.exists(self.old_file_path):
++            try:
++                import shutil
++                shutil.copy2(self.old_file_path, self.file_path)
++                logging.info(f"[ExtruderSwitchRecorder] Migrated data from {self.old_file_path} to {self.file_path}")
++            except Exception as e:
++                logging.warning(f"[ExtruderSwitchRecorder] Failed to migrate data: {e}")
++
++    def _load_data(self):
++        try:
++            if os.path.exists(self.file_path):
++                with open(self.file_path, 'r') as f:
++                    raw = f.read().strip()
++                    if raw:
++                        return json.loads(raw)
++        except Exception as e:
++            logging.warning(f"[ExtruderSwitchRecorder] Failed to load data: {e}")
++        return {}
++
++    def _write_to_file(self):
++        try:
++            json_content = json.dumps(self.data, indent=4)
++            queuefile.async_write_file(self.file_path, json_content, safe_write=True)
++            self.dirty = False
++            logging.info(f"[ExtruderSwitchRecorder] Data atomically written to: {self.file_path}")
++            return True
++        except Exception as e:
++            logging.exception(f"[ExtruderSwitchRecorder] Failed to write file: {e}")
++            return False
++    def _init_extruder_entry(self, extruder_name):
++        if extruder_name not in self.data:
++            # If extruder does not exist, create all fields
++            self.data[extruder_name] = {
++                'switch_count': 0,
++                'retry_count': 0,
++                'error_count': 0,
++                'last_maintenance_count': 0  # Switch count at last maintenance
++            }
++        else:
++            # If extruder exists, only add missing fields
++            entry = self.data[extruder_name]
++            for key in ['switch_count', 'retry_count', 'error_count', 'last_maintenance_count']:
++                if key not in entry:
++                    entry[key] = 0
++
++    def _on_save_timer(self, eventtime):
++        # self.gcode.respond_info("path: {}, self.dirty: {}, self.allow_save: {}".format(self.file_path, self.dirty, self.allow_save))
++        if self.dirty and self.allow_save:
++            self._write_to_file()
++
++        if not self.maintenance_exception_raised:
++            need_check = True
++            msm = self.printer.lookup_object('machine_state_manager', None)
++            if msm is not None:
++                state_str = str(msm.get_status()['main_state'])
++                if state_str == "PRINTING":
++                    need_check = False
++            if need_check and self._check_maintenance_status():
++                msg = "Maintenance recommended for extruders"
++                self.printer.raise_structured_code_exception("0001-0523-0000-0037", msg, 0)
++                self.maintenance_exception_raised = True
++        return eventtime + self.save_interval
++
++    def get_data(self):
++        return self.data
++
++    def add_switch_count(self, extruder_name):
++        self._init_extruder_entry(extruder_name)
++        self.data[extruder_name]['switch_count'] += 1
++        self.dirty = True
++        # logging.info(f"[ExtruderSwitchRecorder] Extruder {extruder_name} switch count updated to: {self.data[extruder_name]['switch_count']}")
++
++    def add_retry_count(self, extruder_name):
++        self._init_extruder_entry(extruder_name)
++        self.data[extruder_name]['retry_count'] += 1
++        self.dirty = True
++        # logging.info(f"[ExtruderSwitchRecorder] Extruder {extruder_name} retry count updated to: {self.data[extruder_name]['retry_count']}")
++
++    def add_error_count(self, extruder_name):
++        self._init_extruder_entry(extruder_name)
++        self.data[extruder_name]['error_count'] += 1
++        self.dirty = True
++        # logging.info(f"[ExtruderSwitchRecorder] Extruder {extruder_name} error count updated to: {self.data[extruder_name]['error_count']}")
++
++    def cmd_RESET_EXTRUDER_SWITCH_RECORDER(self, gcmd):
++        """G-code command to reset extruder switch recorder"""
++        # Check if reset is permitted by checking for permission file
++        if not self.printer.check_extruder_config_permission():
++            raise gcmd.error("Reset of extruder switch recorder is not allowed.")
++
++        self.reactor.update_timer(self.timer, self.reactor.NEVER)
++        self.data = {}
++        self._write_to_file()
++        self.printer.clear_structured_code_exception("0001-0523-0000-0037")
++        self.maintenance_exception_raised = False
++        self.reactor.update_timer(self.timer, self.reactor.NOW)
++        gcmd.respond_info("Extruder switch recorder reset")
++
++    def cmd_RESET_EXTRUDER_MAINTENANCE_COUNT(self, gcmd):
++        """G-code command to reset extruder maintenance counter to current switch count"""
++        # Reset maintenance for all extruders
++        self.reactor.update_timer(self.timer, self.reactor.NEVER)
++        for ext_name in self.data.keys():
++            self._init_extruder_entry(ext_name)
++            self.data[ext_name]['last_maintenance_count'] = self.data[ext_name]['switch_count']
++        self.dirty = True
++        self.printer.clear_structured_code_exception("0001-0523-0000-0037")
++        self.maintenance_exception_raised = False
++        self.reactor.update_timer(self.timer, self.reactor.NOW)
++        gcmd.respond_info("Reset maintenance count for all extruders: current switch counts set as new baseline")
++    def cmd_GET_EXTRUDER_SWITCH_RECORDER(self, gcmd):
++        data = self.get_data()
++        if not data:
++            gcmd.respond_info("No recorded extruder data available.")
++            return
++        gcmd.respond_info("dirty: {}, allow_save: {}".format(self.dirty, self.allow_save))
++        gcmd.respond_info("=== Extruder Switch/Retry Data ===")
++        for extruder, stats in data.items():
++            gcmd.respond_info(f"Extruder '{extruder}':")
++            for key, value in stats.items():
++                gcmd.respond_info(f"  {key}: {value}")
++            gcmd.respond_info("-----------------------------")
++        gcmd.respond_info("===============================")
++
++        # Add maintenance status information
++        gcmd.respond_info("=== Extruder Maintenance Status ===")
++        gcmd.respond_info(f"Individual threshold: {self.individual_maintenance_threshold}")
++        gcmd.respond_info(f"Total threshold: {self.total_maintenance_threshold}")
++
++        # Calculate total switch count
++        total_switch_count = sum(self.data[ext_name].get('switch_count', 0) for ext_name in self.data.keys())
++        total_maintenance_count = sum(self.data[ext_name].get('last_maintenance_count', 0) for ext_name in self.data.keys())
++        total_switches_since_maintenance = total_switch_count - total_maintenance_count
++        total_remaining = max(0, self.total_maintenance_threshold - total_switches_since_maintenance)
++
++        gcmd.respond_info(f"Total switches: {total_switch_count}")
++        gcmd.respond_info(f"Total switches since maintenance: {total_switches_since_maintenance}/{self.total_maintenance_threshold} (due in {total_remaining})")
++
++        for ext_name in sorted(self.data.keys()):
++            self._init_extruder_entry(ext_name)
++            switch_count_since_maintenance = self.data[ext_name]['switch_count'] - self.data[ext_name]['last_maintenance_count']
++            remaining = max(0, self.individual_maintenance_threshold - switch_count_since_maintenance)
++            gcmd.respond_info(f"  {ext_name}: {switch_count_since_maintenance}/{self.individual_maintenance_threshold} (due in {remaining})")
++        gcmd.respond_info("==================================")
+ 
+ class ExtruderStepper:
+     def __init__(self, config):
+         self.printer = config.get_printer()
++        self.reactor = self.printer.get_reactor()
+         self.name = config.get_name().split()[-1]
++        self.extruder_index = self._get_extruder_index(self.name)
+         self.pressure_advance = self.pressure_advance_smooth_time = 0.
+         self.config_pa = config.getfloat('pressure_advance', 0., minval=0.)
+         self.config_smooth_time = config.getfloat(
+@@ -39,7 +273,15 @@
+                                    self.name, self.cmd_SYNC_EXTRUDER_MOTION,
+                                    desc=self.cmd_SYNC_EXTRUDER_MOTION_help)
+     def _handle_connect(self):
++        toolhead = self.printer.lookup_object('toolhead')
++        toolhead.register_step_generator(self.stepper.generate_steps)
+         self._set_pressure_advance(self.config_pa, self.config_smooth_time)
++    def _get_extruder_index(self, extruder_name):
++        if extruder_name is not None and extruder_name.startswith('extruder'):
++            num_str = extruder_name[8:]
++            return int(num_str) if num_str.isdigit() else 0
++        else:
++            raise ValueError("Invalid extruder name")
+     def get_status(self, eventtime):
+         return {'pressure_advance': self.pressure_advance,
+                 'smooth_time': self.pressure_advance_smooth_time,
+@@ -50,11 +292,9 @@
+     def sync_to_extruder(self, extruder_name):
+         toolhead = self.printer.lookup_object('toolhead')
+         toolhead.flush_step_generation()
+-        motion_queuing = self.printer.lookup_object('motion_queuing')
+         if not extruder_name:
+             self.stepper.set_trapq(None)
+             self.motion_queue = None
+-            motion_queuing.check_step_generation_scan_windows()
+             return
+         extruder = self.printer.lookup_object(extruder_name, None)
+         if extruder is None or not isinstance(extruder, PrinterExtruder):
+@@ -63,7 +303,6 @@
+         self.stepper.set_position([extruder.last_position, 0., 0.])
+         self.stepper.set_trapq(extruder.get_trapq())
+         self.motion_queue = extruder_name
+-        motion_queuing.check_step_generation_scan_windows()
+     def _set_pressure_advance(self, pressure_advance, smooth_time):
+         old_smooth_time = self.pressure_advance_smooth_time
+         if not self.pressure_advance:
+@@ -72,18 +311,14 @@
+         if not pressure_advance:
+             new_smooth_time = 0.
+         toolhead = self.printer.lookup_object("toolhead")
++        if new_smooth_time != old_smooth_time:
++            toolhead.note_step_generation_scan_time(
++                    new_smooth_time * .5, old_delay=old_smooth_time * .5)
+         ffi_main, ffi_lib = chelper.get_ffi()
+         espa = ffi_lib.extruder_set_pressure_advance
+-        if new_smooth_time != old_smooth_time:
+-            # Need full kinematic flush to change the smooth time
+-            toolhead.flush_step_generation()
+-            espa(self.sk_extruder, 0., pressure_advance, new_smooth_time)
+-            motion_queuing = self.printer.lookup_object('motion_queuing')
+-            motion_queuing.check_step_generation_scan_windows()
+-        else:
+-            toolhead.register_lookahead_callback(
+-                lambda print_time: espa(self.sk_extruder, print_time,
+-                                        pressure_advance, new_smooth_time))
++        toolhead.register_lookahead_callback(
++            lambda print_time: espa(self.sk_extruder, print_time,
++                                    pressure_advance, new_smooth_time))
+         self.pressure_advance = pressure_advance
+         self.pressure_advance_smooth_time = smooth_time
+     cmd_SET_PRESSURE_ADVANCE_help = "Set pressure advance parameters"
+@@ -96,12 +331,31 @@
+             raise gcmd.error("Unable to infer active extruder stepper")
+         extruder.extruder_stepper.cmd_SET_PRESSURE_ADVANCE(gcmd)
+     def cmd_SET_PRESSURE_ADVANCE(self, gcmd):
++        print_stats_state = None
++        print_stats = self.printer.lookup_object('print_stats', None)
++        if print_stats is not None:
++            print_stats_state = print_stats.get_status(self.reactor.monotonic())["state"]
++        print_config = self.printer.lookup_object('print_task_config', None)
++        if print_config is not None and print_stats is not None and \
++                print_config.print_task_config['flow_calibrate'] == True:
++            if print_stats_state in ['printing', 'paused']:
++                gcmd.respond_info("flow calibration enabled, so not take effect.")
++                return
++
+         pressure_advance = gcmd.get_float('ADVANCE', self.pressure_advance,
+                                           minval=0.)
+         smooth_time = gcmd.get_float('SMOOTH_TIME',
+                                      self.pressure_advance_smooth_time,
+                                      minval=0., maxval=.200)
++
++        old_pressure_advance = self.pressure_advance
++        old_smooth_time = self.pressure_advance_smooth_time
+         self._set_pressure_advance(pressure_advance, smooth_time)
++        virtual_sdcard = self.printer.lookup_object('virtual_sdcard', None)
++        if (virtual_sdcard is not None and
++            (old_pressure_advance != self.pressure_advance or
++             old_smooth_time != self.pressure_advance_smooth_time)):
++            virtual_sdcard.record_pl_print_pressure_advance({self.name: [self.pressure_advance, self.pressure_advance_smooth_time]})
+         msg = ("pressure_advance: %.6f\n"
+                "pressure_advance_smooth_time: %.6f"
+                % (pressure_advance, smooth_time))
+@@ -142,9 +396,15 @@
+         self.printer = config.get_printer()
+         self.name = config.get_name()
+         self.last_position = 0.
++        self.reactor = self.printer.get_reactor()
++        self.activating_move = False
++        self.extruder_num = extruder_num
++        self.unipolar_hall = False
+         # Setup hotend heater
+         pheaters = self.printer.load_object(config, 'heaters')
+         gcode_id = 'T%d' % (extruder_num,)
++        self.gcode_id = gcode_id
++        self.extruder_index = extruder_num
+         self.heater = pheaters.setup_heater(config, gcode_id)
+         # Setup kinematic checks
+         self.nozzle_diameter = config.getfloat('nozzle_diameter', above=0.)
+@@ -170,9 +430,10 @@
+         self.instant_corner_v = config.getfloat(
+             'instantaneous_corner_velocity', 1., minval=0.)
+         # Setup extruder trapq (trapezoidal motion queue)
+-        self.motion_queuing = self.printer.load_object(config, 'motion_queuing')
+-        self.trapq = self.motion_queuing.allocate_trapq()
+-        self.trapq_append = self.motion_queuing.lookup_trapq_append()
++        ffi_main, ffi_lib = chelper.get_ffi()
++        self.trapq = ffi_main.gc(ffi_lib.trapq_alloc(), ffi_lib.trapq_free)
++        self.trapq_append = ffi_lib.trapq_append
++        self.trapq_finalize_moves = ffi_lib.trapq_finalize_moves
+         # Setup extruder stepper
+         self.extruder_stepper = None
+         if (config.get('step_pin', None) is not None
+@@ -180,18 +441,222 @@
+             or config.get('rotation_distance', None) is not None):
+             self.extruder_stepper = ExtruderStepper(config)
+             self.extruder_stepper.stepper.set_trapq(self.trapq)
++        # check if we have a binding probe
++        binding_ind_coil = config.get("inductance_coil", None)
++        if binding_ind_coil != None:
++            self.binding_probe = \
++                self.printer.lookup_object("inductance_coil {}".format(binding_ind_coil), None)
++            if self.binding_probe is None:
++                raise config.error("Must provide binding probe[{}] for extruder[{}]".format(binding_ind_coil, self.name))
++            self.printer_probe = self.printer.lookup_object('probe', None)
++            if self.printer_probe is None:
++                raise config.error("Must register probe firstly!")
++        else:
++            self.binding_probe = None
++        # check if the extruder is associated with park detector
++        park_detector = config.get('park_detector', None)
++        if park_detector is not None:
++            self.park_detector = self.printer.lookup_object("park_detector {}".format(park_detector), None)
++            if self.park_detector is None:
++                raise config.error("Must provide binding park_detector[{}] for extruder[{}]".format(park_detector, self.name))
++        else:
++            self.park_detector = None
++        self.grab_hall_sensor_type = config.getint('grab_hall_sensor_type', 1, minval=0)
++        self.park_check_enable = False
++        self.park_exception_cnt = 0
++        self.check_interval = config.getfloat('check_interval', PARK_DETECTOR_LOOP_CHECK_INTERVAL, above=0.)
++        self.park_detector_loop_check = self.reactor.register_timer(self._park_detector_loop_check)
++        # Getting the necessary information for extruder switchover
++        self.xy_park_position = None
++        self.y_idle_position = None
++        xy_park_position = config.get("xy_park_position", None)
++        xy_park_position_bak = self.get_extruder_config("xy_park_position")
++        if xy_park_position is not None or xy_park_position_bak is not None:
++            if xy_park_position_bak is not None:
++                y_idle_position_bak = self.get_extruder_config("y_idle_position")
++                if y_idle_position_bak is None:
++                    raise config.error("extruder_config.json, {} config error".format(self.name))
++                self.xy_park_position = xy_park_position_bak
++                self.y_idle_position = y_idle_position_bak
++                config.getlists('xy_park_position', None, seps=(',', '\n'), count=2, parser=float)
++                config.getfloat('y_idle_position', 50., minval=0.)
++            else:
++                xy_park_position = config.getlists('xy_park_position', seps=(',', '\n'), count=2, parser=float)
++                self.xy_park_position = list(xy_park_position[0])
++                self.y_idle_position = config.getfloat('y_idle_position', 50., minval=0.)
++            self.grab_dir = config.getboolean('extruder_grab_dir', True)
++            self.horizontal_move_x = config.getfloat('horizontal_move_x', 10., minval=0.)
++            self.retract_x_dist = config.getfloat('retract_x_dist', 1.5, minval=0.)
++            self.fast_move_speed = config.getfloat('fast_move_speed', 200., above=0.)
++            self.slow_move_speed = config.getfloat('slow_move_speed', 30., above=0.)
++            self.grab_speed = config.getfloat('grab_speed', 10., above=0.)
++            self.inser_buffer_dist = config.getfloat('insertion_buffer_dist', 5., minval=0.)
++            self.printer.lookup_object('gcode').register_command(gcode_id, self.cmd_SWITCH_EXTRUDER_ADVANCED)
++            park_command = "PARK_{}".format(self.name).upper()
++            pick_command = "PICK_{}".format(self.name).upper()
++            self.printer.lookup_object('gcode').register_command(park_command, self.cmd_PARK_EXTRUDER)
++            self.printer.lookup_object('gcode').register_command(pick_command, self.cmd_PICK_EXTRUDER)
++            tmp_command = "MOVE_TO_XY_IDLE_POSITION_{}".format(self.name).upper()
++            self.printer.lookup_object('gcode').register_command(tmp_command, self.cmd_MOVE_TO_XY_IDLE_POSITION)
++
++        self.switch_accel = config.getfloat('switch_accel', 5000., above=0.)
++        self.retry_switch_limit = config.getint('retry_switch_limit', 3, minval=0)
++        # Binding print fan
++        self.binding_fan = None
++        fan = config.get("fan", None)
++        if fan is not None and self.printer.lookup_object("{}".format(fan), None) is not None:
++            self.binding_fan = self.printer.lookup_object("{}".format(fan)).fan
++        self.switch_extruder_ctr_fan_pwm = config.getboolean('switch_extruder_ctr_fan_pwm', True)
++
++        # Obtaining the reference position
++        self.base_position = None
++        self.gcode_offset = None
++        base_position_bak = self.get_extruder_config("base_position")
++        if config.get('base_position', None) is not None or base_position_bak is not None:
++            if base_position_bak is not None:
++                self.base_position = base_position_bak
++                base_position = config.getlists('base_position', None, seps=(',', '\n'), parser=float)
++            else:
++                base_position = config.getlists('base_position', seps=(',', '\n'), parser=float)
++                if base_position is not None and len(base_position[0]) == 3:
++                    self.base_position = [base_position[0][i] for i in range(0, 3)]
++        self.vref_sw = None
++        if config.get('vref_sw_pin', None) is not None:
++            self.vref_sw = self.printer.lookup_object("output_pin {}".format(config.get('vref_sw_pin')), None)
++        self.print_config = self.printer.lookup_object('print_task_config', None)
++        self.printing_e_pos = 0.0
++        # handle flow calibration events
++        self.is_calibrating_flow = False
++        self.printer.register_event_handler("flow_calibration:begin", self._handle_flow_calibration_begin)
++        self.printer.register_event_handler("flow_calibration:end", self._handle_flow_calibration_end)
++        self.printer.register_event_handler("virtual_sdcard:reset_file", self._handle_flow_calibration_end)
+         # Register commands
++        self.printer.register_event_handler("klippy:connect", self._handle_connect)
++        self.printer.register_event_handler("klippy:ready", self._handle_ready)
++        self.printer.register_event_handler("klippy:shutdown", self._handle_shutdown)
++        self.printer.register_event_handler("probe_inductance_coil: update_extruder_offset", self._update_extruder_offset)
++
+         gcode = self.printer.lookup_object('gcode')
++        wh = self.printer.lookup_object('webhooks')
+         if self.name == 'extruder':
+             toolhead.set_extruder(self, 0.)
++            self.gcode_offset = [0, 0, 0]
+             gcode.register_command("M104", self.cmd_M104)
+             gcode.register_command("M109", self.cmd_M109)
++            gcode.register_command("SET_MAX_E_ACCEL", self.cmd_SET_MAX_E_ACCEL)
++            gcode.register_command("SET_MAX_E_VELOCITY", self.cmd_SET_MAX_E_VELOCITY)
++            gcode.register_command("ENTER_PARK_POINT_MANUAL_CALIBRATION", self.cmd_ENTER_PARK_POINT_MANUAL_CALIBRATION)
++            gcode.register_command("EXIT_PARK_POINT_MANUAL_CALIBRATION", self.cmd_EXIT_PARK_POINT_MANUAL_CALIBRATION)
++            wh.register_endpoint("control/extruder_temp", self._handle_control_extruder_temp)
++            if self.park_detector is not None:
++                gcode.register_command("GET_EXTRUDER_ACTIVATE_INFO", self.cmd_GET_EXTRUDER_ACTIVATE_INFO)
+         gcode.register_mux_command("ACTIVATE_EXTRUDER", "EXTRUDER",
+                                    self.name, self.cmd_ACTIVATE_EXTRUDER,
+                                    desc=self.cmd_ACTIVATE_EXTRUDER_help)
++        gcode.register_mux_command("INNER_APPLY_FLOW_K", "EXTRUDER",
++                            self.name, self.cmd_INNER_APPLY_FLOW_K)
++        gcode.register_mux_command("SET_EXTRUDER_BASE_POSITION", "EXTRUDER",
++                                   self.name, self.cmd_SET_EXTRUDER_BASE_POSITION,
++                                   desc="Set extruder base position")
++        gcode.register_mux_command("SET_EXTRUDER_PARK_POSITION", "EXTRUDER",
++                                   self.name, self.cmd_SET_EXTRUDER_PARK_POSITION,
++                                   desc="Set extruder park position")
++        gcode.register_mux_command("MOVE_TO_PARK_CALIBRATION_POINT", "EXTRUDER",
++                                   self.name, self.cmd_MOVE_TO_PARK_CALIBRATION_POINT)
++        gcode.register_mux_command("VERIFY_PARK_POSITION", "EXTRUDER",
++                                   self.name, self.cmd_VERIFY_PARK_POSITION)
++    def _handle_connect(self):
++        self.update_extruder_gcode_offset()
++    def _handle_ready(self):
++        if self.park_detector is not None:
++            self.reactor.update_timer(self.park_detector_loop_check, self.reactor.monotonic() + 2)
++    def _handle_shutdown(self):
++        if self.park_detector is not None:
++            self.reactor.update_timer(self.park_detector_loop_check, self.reactor.NEVER)
++            self.check_enable = False
++            self.park_exception_cnt = 0
++    def _handle_flow_calibration_end(self):
++        logging.info("extruder: end flow calibration")
++        self.is_calibrating_flow = False
++    def _handle_flow_calibration_begin(self):
++        logging.info("extruder: begin flow calibration")
++        self.is_calibrating_flow = True
++    def _update_extruder_offset(self):
++        self.update_extruder_gcode_offset()
++        self.active_gcode_offset()
++    def active_binding_probe(self):
++        if self.binding_probe is None:
++            return
++        logging.info("active new eddy current probe: {}".format(
++            self.binding_probe.name))
++        self.printer_probe.set_mcu_probe(self.binding_probe)
++    def active_binding_fan(self):
++        if self.binding_fan is None:
++            return
++        print_fan = self.printer.lookup_object('fan', None)
++        if print_fan is not None:
++            print_fan.fan = self.binding_fan
++            # self.printer.lookup_object('gcode').respond_info("binding {} fan".format(self.name))
++    def get_park_detector_status(self):
++        if self.park_detector is not None:
++            return self.park_detector.get_park_detector_status()
++        else:
++            return None
++    def set_park_detector_enable(self, enable):
++        if self.park_detector is not None:
++            self.park_exception_cnt = 0
++            self.park_check_enable = not not enable
++    def update_move_time(self, flush_time, clear_history_time):
++        self.trapq_finalize_moves(self.trapq, flush_time, clear_history_time)
++    def active_gcode_offset(self):
++        if self.base_position is None:
++            return
++        gcode = self.printer.lookup_object('gcode')
++        if self.gcode_offset is not None:
++            gcode.run_script_from_command("SET_GCODE_OFFSET X=%f Y=%f Z=%f" % (self.gcode_offset[0], self.gcode_offset[1], self.gcode_offset[2]))
++    def get_center_base_position(self):
++        center_x = center_y = first_z_value = None
++        extruder_list = self.printer.lookup_object('extruder_list', [])
++        if extruder_list and len(extruder_list) > 1:
++            valid_positions = []
++            for ex in extruder_list:
++                if ex.base_position is not None and len(ex.base_position) >= 3:
++                    if first_z_value is None:
++                        first_z_value = ex.base_position[2]
++                    valid_positions.append(ex.base_position)
++            if valid_positions and len(valid_positions) > 1:
++                x_coords = [pos[0] for pos in valid_positions]
++                y_coords = [pos[1] for pos in valid_positions]
++                min_x, max_x = min(x_coords), max(x_coords)
++                min_y, max_y = min(y_coords), max(y_coords)
++                center_x = (min_x + max_x) / 2.0
++                center_y = (min_y + max_y) / 2.0
++        if center_x is not None and center_y is not None and first_z_value is not None:
++            return [center_x, center_y, first_z_value]
++        else:
++            return None
++    def update_extruder_gcode_offset(self):
++        center_base_position = self.get_center_base_position()
++        if center_base_position is not None and self.base_position is not None:
++            self.gcode_offset = [self.base_position[i] - center_base_position[i] for i in range(0, 3)]
+     def get_status(self, eventtime):
+         sts = self.heater.get_status(eventtime)
+-        sts['can_extrude'] = self.heater.can_extrude
++        sts['can_extrude'] = bool(self.heater.can_extrude)
++        sts['extruder_index'] = self.extruder_index
++        sts['printing_e_pos'] = self.printing_e_pos
++        sts['activating_move'] = self.activating_move
++        if self.park_detector is not None:
++            sts.update(self.get_park_detector_status())
++            sts['real_extruder_stats'] = self.get_extruder_activate_status()[0]
++        sts['extruder_offset'] = [0, 0, 0] if self.gcode_offset is None else self.gcode_offset
++        switch_recorder = self.printer.lookup_object('extruder_switch_recorder', None)
++        if switch_recorder is not None:
++            recorder_data = switch_recorder.get_data()
++            extruder_entry = recorder_data.get(self.name, {})
++            sts['switch_count'] = extruder_entry.get('switch_count', 0)
++            sts['retry_count'] = extruder_entry.get('retry_count', 0)
++            sts['error_count'] = extruder_entry.get('error_count', 0)
++            sts['last_maintenance_count'] = extruder_entry.get('last_maintenance_count', 0)
+         if self.extruder_stepper is not None:
+             sts.update(self.extruder_stepper.get_status(eventtime))
+         return sts
+@@ -201,66 +666,375 @@
+         return self.heater
+     def get_trapq(self):
+         return self.trapq
+-    def get_axis_gcode_id(self):
+-        return 'E'
+     def stats(self, eventtime):
+         return self.heater.stats(eventtime)
+-    def check_move(self, move, ea_index):
++    def check_move(self, move):
++        axis_r = move.axes_r[3]
+         if not self.heater.can_extrude:
+-            raise self.printer.command_error(
+-                "Extrude below minimum temp\n"
+-                "See the 'min_extrude_temp' config option for details")
+-        axis_r = move.axes_r[ea_index]
+-        axis_d = move.axes_d[ea_index]
++            coded = f"0003-0523-{self.extruder_num:04d}-0001"
++            msg = f"{self.name} below minimum temp, temperature: {self.heater.smoothed_temp:.2f}, See the 'min_extrude_temp' config option for details"
++            coded_msg = '{"coded":"%s", "msg":"%s"}' % (coded, msg)
++            raise self.printer.command_error(coded_msg)
+         if (not move.axes_d[0] and not move.axes_d[1]) or axis_r < 0.:
+             # Extrude only move (or retraction move) - limit accel and velocity
+-            if abs(axis_d) > self.max_e_dist:
+-                raise self.printer.command_error(
+-                    "Extrude only move too long (%.3fmm vs %.3fmm)\n"
+-                    "See the 'max_extrude_only_distance' config"
+-                    " option for details" % (axis_d, self.max_e_dist))
++            if abs(move.axes_d[3]) > self.max_e_dist:
++                coded = f"0003-0523-{self.extruder_num:04d}-0004"
++                msg = "Extrude only move too long (%.3fmm vs %.3fmm), See the 'max_extrude_only_distance' config option for details" % (move.axes_d[3], self.max_e_dist)
++                coded_msg = '{"coded":"%s", "msg":"%s"}' % (coded, msg)
++                raise self.printer.command_error(coded_msg)
++                # raise self.printer.command_error(
++                #     "Extrude only move too long (%.3fmm vs %.3fmm)\n"
++                #     "See the 'max_extrude_only_distance' config"
++                #     " option for details" % (move.axes_d[3], self.max_e_dist), id=523, index=self.extruder_num, code=4, level=1)
+             inv_extrude_r = 1. / abs(axis_r)
+             move.limit_speed(self.max_e_velocity * inv_extrude_r,
+                              self.max_e_accel * inv_extrude_r)
+         elif axis_r > self.max_extrude_ratio:
+-            if axis_d <= self.nozzle_diameter * self.max_extrude_ratio:
++            if move.axes_d[3] <= self.nozzle_diameter * self.max_extrude_ratio:
+                 # Permit extrusion if amount extruded is tiny
+                 return
+             area = axis_r * self.filament_area
+             logging.debug("Overextrude: %s vs %s (area=%.3f dist=%.3f)",
+                           axis_r, self.max_extrude_ratio, area, move.move_d)
+-            raise self.printer.command_error(
+-                "Move exceeds maximum extrusion (%.3fmm^2 vs %.3fmm^2)\n"
+-                "See the 'max_extrude_cross_section' config option for details"
+-                % (area, self.max_extrude_ratio * self.filament_area))
+-    def calc_junction(self, prev_move, move, ea_index):
+-        diff_r = move.axes_r[ea_index] - prev_move.axes_r[ea_index]
++            coded = f"0003-0523-{self.extruder_num:04d}-0005"
++            msg = "Move exceeds maximum extrusion (%.3fmm^2 vs %.3fmm^2)\\n" % (area, self.max_extrude_ratio * self.filament_area)
++            msg +="See the 'max_extrude_cross_section' config option for details"
++            coded_msg = '{"coded":"%s", "msg":"%s"}' % (coded, msg)
++            raise self.printer.command_error(coded_msg)
++            # raise self.printer.command_error(
++            #     "Move exceeds maximum extrusion (%.3fmm^2 vs %.3fmm^2)\n"
++            #     "See the 'max_extrude_cross_section' config option for details"
++            #     % (area, self.max_extrude_ratio * self.filament_area), id=523, index=self.extruder_num, code=5, level=1)
++    def calc_junction(self, prev_move, move):
++        diff_r = move.axes_r[3] - prev_move.axes_r[3]
+         if diff_r:
+             return (self.instant_corner_v / abs(diff_r))**2
+         return move.max_cruise_v2
+-    def process_move(self, print_time, move, ea_index):
+-        axis_r = move.axes_r[ea_index]
++    def move(self, print_time, move):
++        axis_r = move.axes_r[3]
+         accel = move.accel * axis_r
+         start_v = move.start_v * axis_r
+         cruise_v = move.cruise_v * axis_r
+         can_pressure_advance = False
+-        if axis_r > 0. and (move.axes_d[0] or move.axes_d[1]):
++        if axis_r > 0. and ((move.axes_d[0] or move.axes_d[1]) or
++                self.is_calibrating_flow):
+             can_pressure_advance = True
+         # Queue movement (x is extruder movement, y is pressure advance flag)
+         self.trapq_append(self.trapq, print_time,
+                           move.accel_t, move.cruise_t, move.decel_t,
+-                          move.start_pos[ea_index], 0., 0.,
++                          move.start_pos[3], 0., 0.,
+                           1., can_pressure_advance, 0.,
+-                          start_v, cruise_v, accel)
+-        self.last_position = move.end_pos[ea_index]
++                          start_v, cruise_v, accel, move.line)
++        self.last_position = move.end_pos[3]
+     def find_past_position(self, print_time):
+         if self.extruder_stepper is None:
+             return 0.
+         return self.extruder_stepper.find_past_position(print_time)
+-    def cmd_M104(self, gcmd, wait=False):
+-        # Set Extruder Temperature
+-        temp = gcmd.get_float('S', 0.)
+-        index = gcmd.get_int('T', None, minval=0)
++    def check_homing(self):
++        curtime = self.printer.get_reactor().monotonic()
++        homed_axes_list = self.printer.lookup_object('toolhead').get_status(curtime)['homed_axes']
++        return ('x' in homed_axes_list and 'y' in homed_axes_list and 'z' in homed_axes_list)
++    def check_xy_homing(self):
++        curtime = self.printer.get_reactor().monotonic()
++        homed_axes_list = self.printer.lookup_object('toolhead').get_status(curtime)['homed_axes']
++        return ('x' in homed_axes_list and 'y' in homed_axes_list)
++    def get_extruder_activate_status(self):
++        toolhead = self.printer.lookup_object('toolhead')
++        extruder_info = ['unknown extruder', 2]
++        extruder_park = pin_sta = None
++        if self.park_detector is not None:
++            extruder_list = self.printer.lookup_object('extruder_list', [])
++            state_list = [extruder_list[i].get_park_detector_status() for i in range(len(extruder_list))]
++            extruder_park = [state_list[i]['state'] for i in range(len(state_list))]
++            pin_sta = [[state_list[i]['park_pin'], state_list[i]['active_pin'], state_list[i]['grab_valid_pin']] for i in range(len(state_list))]
++            extruder_park_num = extruder_active_num = 0
++            if 'PARKED' in extruder_park:
++                extruder_park_num = extruder_park.count('PARKED')
++            if 'ACTIVATE' in extruder_park:
++                extruder_active_num = extruder_park.count('ACTIVATE')
++
++            if extruder_park_num == len(extruder_park):
++                extruder_info = [toolhead.get_extruder().name, 1]
++            elif extruder_active_num == 1 and extruder_park_num + 1 == len(extruder_park):
++                if 'ACTIVATE' in extruder_park:
++                    index =  extruder_park.index('ACTIVATE')
++                    extruder_info = [extruder_list[index].name, 0]
++        else:
++            extruder_info = [toolhead.get_extruder().name, 0]
++        return [extruder_info, extruder_park, pin_sta]
++    def check_allow_retry_switch_extruder(self):
++        def check_retry_extruder(status_list):
++            if not status_list:
++                return False, -1
++            unknown_indices = [i for i, s in enumerate(status_list) if s == 'UNKNOWN']
++            if len(status_list) == 1:
++                is_valid = len(unknown_indices) == 1
++                return (is_valid, unknown_indices[0] if is_valid else -1)
++            valid = len(unknown_indices) == 1 and all(s == 'PARKED' for s in status_list if s != 'UNKNOWN')
++            return (valid, unknown_indices[0]) if valid else (False, -1)
++
++        activate_status = self.get_extruder_activate_status()
++        if not activate_status or len(activate_status) < 3:
++            return None
++
++        first_item = activate_status[0]
++        extruder_status_list = activate_status[1]
++
++        if not isinstance(first_item, (list, tuple)) or len(first_item) < 2 or first_item[1] != 2:
++            return None
++
++        if not isinstance(extruder_status_list, list):
++            return None
++
++        allow_retry, retry_extruder_index = check_retry_extruder(extruder_status_list)
++        if allow_retry and isinstance(activate_status[2], list) and len(activate_status[2]) > retry_extruder_index:
++            pin_status = activate_status[2][retry_extruder_index]
++            park_pin = pin_status[0]
++            active_pin = pin_status[1]
++            grab_valid_pin = pin_status[2]
++            if park_pin is False and active_pin is False and grab_valid_pin:
++                return retry_extruder_index
++        return None
++
++    def set_vref_sw(self, value):
++        if self.vref_sw is not None:
++            toolhead = self.printer.lookup_object('toolhead')
++            self.vref_sw._set_pin(toolhead.get_last_move_time(), value)
++    def only_enable_current_extruder_vref_sw(self):
++        toolhead = self.printer.lookup_object('toolhead')
++        extruder_list = self.printer.lookup_object('extruder_list', [])
++        for i in range(len(extruder_list)):
++            if extruder_list[i].vref_sw is not None:
++                if extruder_list[i].name == self.name:
++                    extruder_list[i].set_vref_sw(1)
++                else:
++                    extruder_list[i].set_vref_sw(0)
++    def get_extruder_config(self, field_name=None):
++        extruder_bak = self.printer.lookup_object('extruder_config_bak', None)
++        if extruder_bak is None:
++            return None
++        return extruder_bak.get_extruder_config(self.name, field_name)
++
++    def update_extruder_config(self, field_name=None, value=None):
++        extruder_bak = self.printer.lookup_object('extruder_config_bak', None)
++        if extruder_bak is None:
++            return False
++        return extruder_bak.update_extruder_config(self.name, field_name, value)
++
++    def analyze_switch_extruder_error(self, err_state=None):
++        try:
++            if err_state is None:
++                err_state = self.get_extruder_activate_status()
++
++            if not isinstance(err_state, list) or len(err_state) < 3:
++                logging.info("Invalid state format: %s", str(err_state))
++                return None
++
++            if not (isinstance(err_state[0], list) and len(err_state[0]) > 1):
++                logging.info("Invalid header format: %s", str(err_state[0]))
++                return None
++
++            if err_state[0][1] != 2:
++                return None
++
++            states = err_state[1]
++            grips = err_state[2] if len(err_state) > 2 else []
++
++            if len(states) != len(grips):
++                logging.info("State/grip mismatch: states=%d, grips=%d", len(states), len(grips))
++                return None
++
++            MAX_EXTRUDERS = 4
++            if len(states) > MAX_EXTRUDERS:
++                logging.warning("Too many extruders: %d, exceeds maximum: %d", len(states), MAX_EXTRUDERS)
++                return None
++
++            fmt_grip = lambda g: ''.join('T' if x else 'F' for x in g) if isinstance(g, list) else "?"
++
++            activated = []
++            unknown = []
++            error_messages = []
++            all_grip_states = []
++
++            for i, s in enumerate(states):
++                if s == 'ACTIVATE':
++                    activated.append(i)
++                elif s == 'UNKNOWN':
++                    unknown.append(i)
++
++                all_grip_states.append(fmt_grip(grips[i]))
++
++            activated_code = 0
++            unknown_code = 0
++
++            if len(activated) > 1:
++                grip_info = [f"{i}-({all_grip_states[i]})" for i in activated]
++                error_messages.append(f"multi-act: {grip_info}")
++
++                activated_sorted = sorted(activated)
++                extruder_combinations = {
++                    (0, 1): 0,
++                    (0, 2): 1,
++                    (0, 3): 2,
++                    (1, 2): 3,
++                    (1, 3): 4,
++                    (2, 3): 5,
++                    (0, 1, 2): 6,
++                    (0, 1, 3): 7,
++                    (0, 2, 3): 8,
++                    (1, 2, 3): 9,
++                    (0, 1, 2, 3): 10
++                }
++
++                combination_index = extruder_combinations.get(tuple(activated_sorted))
++                if combination_index is not None:
++                    activated_code = combination_index + 1
++
++            if unknown:
++                unknown_info = []
++                for idx in unknown:
++                    grip = grips[idx]
++                    if isinstance(grip, list) and len(grip) >= 2:
++                        if len(grip) >= 3 and self.unipolar_hall:
++                            if not grip[0] and not grip[1]:
++                                if grip[2]:
++                                    unknown_info.append(f"{idx}-(pogopin unconnected)")
++                                else:
++                                    unknown_info.append(f"{idx}-(extruder detached)")
++                            elif grip[0] and grip[1]:
++                                unknown_info.append(f"{idx}-({all_grip_states[idx]})")
++                            else:
++                                unknown_info.append(f"{idx}-({all_grip_states[idx]})")
++                        else:
++                            unknown_info.append(f"{idx}-({all_grip_states[idx]})")
++                    else:
++                        unknown_info.append(f"{idx}-({all_grip_states[idx]})")
++                error_messages.append(f"err-sta: {unknown_info}")
++
++                unknown_sorted = sorted(unknown)
++                unknown_combinations = {
++                    (0,): 0,
++                    (1,): 1,
++                    (2,): 2,
++                    (3,): 3,
++                    (0, 1): 4,
++                    (0, 2): 5,
++                    (0, 3): 6,
++                    (1, 2): 7,
++                    (1, 3): 8,
++                    (2, 3): 9,
++                    (0, 1, 2): 10,
++                    (0, 1, 3): 11,
++                    (0, 2, 3): 12,
++                    (1, 2, 3): 13,
++                    (0, 1, 2, 3): 14
++                }
++
++                unknown_index = unknown_combinations.get(tuple(unknown_sorted))
++                if unknown_index is not None:
++                    unknown_code = unknown_index + 1
++
++            if error_messages:
++                return (
++                    "; ".join(error_messages),
++                    activated,
++                    unknown,
++                    all_grip_states,
++                    activated_code,
++                    unknown_code
++                )
++            return None
++
++        except Exception as e:
++            logging.exception("Error analyzing extruder state: %s", str(e))
++            return None
++
++    def _park_detector_loop_check(self, eventtime):
++        if self.park_detector is None:
++            return self.reactor.NEVER
++        toolhead = self.printer.lookup_object('toolhead')
++        state_message, category = self.printer.get_state_message()
++        exception_record = False
++        if category == 'ready' and self.park_check_enable:
++            state = self.get_park_detector_status()
++            if toolhead.get_extruder() is self:
++                if state['state'] != 'ACTIVATE':
++                    exception_record = True
++            else:
++                if state['state'] != 'PARKED':
++                    exception_record = True
++        if exception_record:
++            if self.park_exception_cnt <= PARK_DETECTOR_MAX_EXCEPTION_COUNT:
++                self.park_exception_cnt += 1
++        else:
++            self.park_exception_cnt = 0
++
++        if self.park_exception_cnt == PARK_DETECTOR_MAX_EXCEPTION_COUNT:
++            self.park_exception_cnt = 0
++            self.printer.invoke_shutdown("current extruder name: {}, {} park detector error, {}".format(toolhead.get_extruder().name, self.name, state))
++            # extruder_list = self.printer.lookup_object('extruder_list', [])
++            # for i in range(len(extruder_list)):
++            #     extruder_list[i].set_park_detector_enable(False)
++            # virtual_sdcard = self.printer.lookup_object('virtual_sdcard', None)
++            # if virtual_sdcard is not None and virtual_sdcard.current_file is not None:
++            #     self.gcode.run_script('CANCEL_PRINT')
++        return eventtime + self.check_interval
++    def _add_structured_code_list(self, e):
++        global STRUCTURED_CODE_LIST
++        try:
++            exception_manager = self.printer.lookup_object('exception_manager', None)
++            if exception_manager is None:
++                logging.warning("Exception manager not found when adding structured code")
++                return
++
++            exc_obj = coded_exception.CodedException.from_exception(e)
++            if exc_obj is None:
++                logging.warning("Failed to create CodedException from exception")
++                return
++
++            id = exc_obj.id
++            index = exc_obj.index
++            code = exc_obj.code
++            message = exc_obj.message
++            oneshot = exc_obj.oneshot
++
++            if message:
++                try:
++                    coded_message = self.printer.extract_encoded_message(message)
++                    if coded_message:
++                        structured_code = coded_message.get("coded")
++                        if structured_code:
++                            parsed = exception_manager._parse_structured_code(structured_code)
++                            id = parsed.get("id", id)
++                            index = parsed.get("index", index)
++                            code = parsed.get("code", code)
++                            level = parsed.get("level", exc_obj.level)
++                        else:
++                            id = coded_message.get("id", id)
++                            index = coded_message.get("index", index)
++                            code = coded_message.get("code", code)
++                            level = coded_message.get("level", exc_obj.level)
++                        oneshot = coded_message.get("oneshot", oneshot)
++                    if id == 523 and oneshot == 0:
++                        structured_code = f"0002-{id:04d}-{index:04d}-{code:04d}"
++                        if structured_code not in STRUCTURED_CODE_LIST:
++                            STRUCTURED_CODE_LIST.append(structured_code)
++                except Exception as parse_err:
++                    logging.warning(f"Error parsing structured code: {str(parse_err)}")
++
++        except Exception as err:
++            logging.error(f"Error in _add_structured_code_list: {str(err)}")
++
++    def _clear_structured_code_list(self):
++        global STRUCTURED_CODE_LIST
++        if STRUCTURED_CODE_LIST:
++            for code in STRUCTURED_CODE_LIST:
++                self.printer.clear_structured_code_exception(code)
++            STRUCTURED_CODE_LIST = []
++
++    def _set_extruder_temp(self, temp, index, map, wait=False):
++        if map != 0 and index is not None and self.print_config is not None:
++            index = self.print_config.get_extruder_map_index(index)
+         if index is not None:
+             section = 'extruder'
+             if index:
+@@ -269,17 +1043,42 @@
+             if extruder is None:
+                 if temp <= 0.:
+                     return
+-                raise gcmd.error("Extruder not configured")
++                raise self.printer.command_error('{"coded":"0001-0523-0000-0006", "msg":"%s not configured"}' % (section))
+         else:
+             extruder = self.printer.lookup_object('toolhead').get_extruder()
+         pheaters = self.printer.lookup_object('heaters')
+         pheaters.set_temperature(extruder.get_heater(), temp, wait)
++    # webhook interface
++    def _handle_control_extruder_temp(self, web_request):
++        """Handle extruder temperature setting request"""
++        try:
++            temp = web_request.get_float('S', 0.)
++            index = web_request.get_int('T', None)
++            extruder_map = web_request.get_int('A', 1)
++            if temp < 0:
++                temp = 0
++            self._set_extruder_temp(temp, index, extruder_map, False)
++            web_request.send({'state': 'success'})
++        except Exception as e:
++            logging.error(f'failed to set extruder temp: {str(e)}')
++            web_request.send({'state': 'error', 'message': str(e)})
++
++    def cmd_M104(self, gcmd, wait=False):
++        # Set Extruder Temperature
++        temp = gcmd.get_float('S', 0.)
++        index = gcmd.get_int('T', None, minval=0)
++        extruder_map = gcmd.get_int('A', 1, minval=0)
++        try:
++            self._set_extruder_temp(temp, index, extruder_map, wait)
++        except Exception as e:
++            raise gcmd.error(str(e))
+     def cmd_M109(self, gcmd):
+         # Set Extruder Temperature and Wait
+         self.cmd_M104(gcmd, wait=True)
+     cmd_ACTIVATE_EXTRUDER_help = "Change the active extruder"
+     def cmd_ACTIVATE_EXTRUDER(self, gcmd):
+         toolhead = self.printer.lookup_object('toolhead')
++        self.only_enable_current_extruder_vref_sw()
+         if toolhead.get_extruder() is self:
+             gcmd.respond_info("Extruder %s already active" % (self.name,))
+             return
+@@ -287,33 +1086,891 @@
+         toolhead.flush_step_generation()
+         toolhead.set_extruder(self, self.last_position)
+         self.printer.send_event("extruder:activate_extruder")
++        self.active_binding_probe()
++        self.active_binding_fan()
++        self.active_gcode_offset()
++    def set_max_accel(self, accel):
++        self.max_e_accel = accel
++    def get_max_accel(self):
++        return self.max_e_accel
++    def cmd_SET_MAX_E_ACCEL(self, gcmd):
++        extruder = self.printer.lookup_object('toolhead').get_extruder()
++        accel = gcmd.get_float('A', extruder.max_e_accel)
++        extruder.max_e_accel = accel
++        gcmd.respond_info("{}'s max accel: {}".format(extruder.name, accel))
++    def cmd_SET_MAX_E_VELOCITY(self, gcmd):
++        extruder = self.printer.lookup_object('toolhead').get_extruder()
++        velocity = gcmd.get_float('V', extruder.max_e_velocity)
++        extruder.max_e_velocity = velocity
++        gcmd.respond_info("{}'s max velocity: {}".format(extruder.name, velocity))
++    def cmd_GET_EXTRUDER_ACTIVATE_INFO(self, gcmd):
++        if self.park_detector is not None:
++            activate_status = self.get_extruder_activate_status()
++            gcmd.respond_info("{} grab_complete: {}".format(activate_status, self.printer.lookup_object('toolhead').is_grab_complete))
++    def cmd_PARK_EXTRUDER(self, gcmd):
++        gcmd.get_command_parameters()['ACTION'] = 'PARK'
++        self.cmd_SWITCH_EXTRUDER(gcmd)
++        # gcmd.respond_info("parameters: {}".format(gcmd.get_command_parameters()))
++    def cmd_PICK_EXTRUDER(self, gcmd):
++        gcmd.get_command_parameters()['ACTION'] = 'PICK'
++        self.cmd_SWITCH_EXTRUDER(gcmd)
++    def cmd_SWITCH_EXTRUDER_ADVANCED(self, gcmd):
++        gcmd.get_command_parameters()['ACTION'] = None
++        extruder_map = gcmd.get_int('A', 1, minval=0)
++        # Mapping Extruder Index
++        if extruder_map != 0 and self.print_config is not None:
++            index = int(self.gcode_id.split('T')[1])
++            index = self.print_config.get_extruder_map_index(index)
++            section = 'extruder'
++            if index:
++                section = 'extruder%d' % (index,)
++            extruder = self.printer.lookup_object(section, None)
++            if extruder is not None:
++                extruder.cmd_SWITCH_EXTRUDER(gcmd)
++        else:
++            self.cmd_SWITCH_EXTRUDER(gcmd)
++    def cmd_SWITCH_EXTRUDER(self, gcmd):
++        retry_count = 0
++        toolhead = self.printer.lookup_object('toolhead')
++        gcode = self.printer.lookup_object('gcode')
++        switch_recorder = self.printer.lookup_object('extruder_switch_recorder', None)
++        def handle_retry(error_msg_prefix):
++            nonlocal retry_count
++            nonlocal switch_recorder
++            retry_count += 1
++            if retry_count < self.retry_switch_limit:
++                gcmd.respond_info(f"Failed to switch extruder, retrying... (Attempt: {retry_count})")
++                return True
++            else:
++                retry_extruder_id = self.check_allow_retry_switch_extruder()
++                if "pogopin" in error_msg_prefix and retry_extruder_id is not None:
++                    try:
++                        self._cmd_SWITCH_EXTRUDER(gcmd, forced_park=True)
++                    except Exception as inner_e:
++                        logging.warning("Inner exception during forced park: %s", str(inner_e))
++
++                if switch_recorder is not None:
++                    switch_recorder.add_error_count(self.name)
++                raise gcmd.error(error_msg_prefix, action="pause")
++
++        try:
++            while retry_count < self.retry_switch_limit:
++                try:
++                    if retry_count > 0:
++                        # gcode.run_script_from_command("G28 X Y")
++                        # toolhead.wait_moves()
++                        retry_extruder_id = self.check_allow_retry_switch_extruder()
++                        if retry_extruder_id is not None:
++                            # Forced parking of extruders
++                            if switch_recorder is not None:
++                                extruder_list = self.printer.lookup_object('extruder_list', [])
++                                if len(extruder_list) > retry_extruder_id:
++                                    switch_recorder.add_retry_count(extruder_list[retry_extruder_id].name)
++                            self._cmd_SWITCH_EXTRUDER(gcmd, forced_park=True)
++                    self._cmd_SWITCH_EXTRUDER(gcmd)
++                    break
++
++                except ExtruderUnknownParkStatus as e:
++                    handle_retry(str(e))
++                except ExtruderPickAbnormal as e:
++                    handle_retry(str(e))
++                except Exception as e:
++                    retry_extruder_id = self.check_allow_retry_switch_extruder()
++                    if "pogopin" in str(e) and retry_extruder_id is not None:
++                        try:
++                            self._cmd_SWITCH_EXTRUDER(gcmd, forced_park=True)
++                        except Exception as inner_e:
++                            logging.warning("Inner exception during forced park: %s", str(inner_e))
++
++                    if switch_recorder is not None:
++                        switch_recorder.add_error_count(self.name)
++                    raise
++            self._clear_structured_code_list()
++        except Exception as e:
++            self._add_structured_code_list(e)
++            if hasattr(toolhead.get_kinematics(), "note_x_not_homed"):
++                toolhead.get_kinematics().note_x_not_homed()
++            if hasattr(toolhead.get_kinematics(), "note_y_not_homed"):
++                toolhead.get_kinematics().note_y_not_homed()
++            raise
++
++    def _cmd_SWITCH_EXTRUDER(self, gcmd, forced_park=False):
++        switch_complete = restore_state = False
++        toolhead = self.printer.lookup_object('toolhead')
++        gcode = self.printer.lookup_object('gcode')
++        gcode_move = self.printer.lookup_object('gcode_move')
++        extruder_list = self.printer.lookup_object('extruder_list', [])
++        activate_status = None
++        fan_pwm_set = False
++        action = None
++        params = gcmd.get_command_parameters()
++        is_grab_complete = False
++        if 'ACTION' in params:
++            action = params['ACTION']
++
++        # forced_park: Special handling flag, use with caution
++        if forced_park:
++            action = 'PARK'
++
++        try:
++            if (self.printer.lookup_object('homing_xyz_override', None) is not None or
++                self.printer.lookup_object('safe_z_home', None) is not None):
++                if not self.check_xy_homing():
++                    gcode.run_script_from_command("G28 X Y")
++            else:
++                if not self.check_homing():
++                    gcode.run_script_from_command("G28")
++            toolhead.wait_moves()
++            self.activating_move = True
++            gcmd.respond_info("{} -> {}".format(toolhead.get_extruder().name, self.name))
++            forced_skip = False
++            retry_extruder_id = None
++            for i in range(10):
++                activate_status = self.get_extruder_activate_status()
++                retry_extruder_id = self.check_allow_retry_switch_extruder()
++                if forced_park and retry_extruder_id is not None:
++                    forced_skip = True
++                if activate_status[0][1] != 2 or forced_skip:
++                    break
++                else:
++                    if i == 9:
++                        result = self.analyze_switch_extruder_error(activate_status)
++                        if result:
++                            error_info, activated, unknown, grip_states, activated_code, unknown_code = result
++                            error_msg = "Extruder %s switch is not allowed, %s" % (self.name, error_info)
++                            if "multi-act" in error_info:
++                                if activated_code + 6 < 18:
++                                    message = '{"coded": "0002-0523-%4d-%4d", "oneshot": %d, "msg":"%s", "action": "pause"}' % (self.extruder_num, activated_code + 6, 0, error_msg)
++                            else:
++                                message = '{"coded": "0002-0523-%4d-0018", "oneshot": %d, "msg":"%s", "action": "pause"}' % (self.extruder_num, 0, error_msg)
++                                if self.grab_hall_sensor_type:
++                                    first_unknown_index = None
++                                    for i, idx in enumerate(unknown):
++                                        if grip_states[idx] != 'FFT':
++                                            first_unknown_index = idx
++                                            break
++
++                                    if first_unknown_index is not None:
++                                        grip_state = grip_states[first_unknown_index]
++                                        if grip_state == 'FFF' or grip_state == 'FFT':
++                                            info = "Extruder %s is not allowed to switch, detected that extruder%d is detached. %s" % (self.name, first_unknown_index, error_info)
++                                            message = '{"coded": "0002-0523-%4d-0040", "oneshot": %d, "msg":"%s", "action": "pause"}' % (first_unknown_index, 0, info)
++                                        elif (grip_state == 'TTF' or grip_state == 'TTT'):
++                                            info = "Extruder %s is not allowed to switch, detected conflicting status for extruder%d: both parked and picked states detected. %s" % (self.name, first_unknown_index, error_info)
++                                            message = '{"coded": "0002-0523-%4d-0041", "oneshot": %d, "msg":"%s", "action": "pause"}' % (first_unknown_index, 0, info)
++                        else:
++                            error_msg = f"{activate_status[1]} {activate_status[2]}"
++                            message = f"Extruder {self.name} switch is not allowed, {error_msg}"
++
++                        if retry_extruder_id is not None:
++                            raise ExtruderUnknownParkStatus(message)
++                        else:
++                            raise gcmd.error(message)
++                    gcmd.respond_info("Retrying to get normal extruder activation status (attempt {}), forced_park: {}, retry_extruder_id: {}".format(i,
++                                        forced_park, retry_extruder_id))
++                    toolhead.dwell(0.2)
++                    toolhead.wait_moves()
++
++            # Extruder is already active and does not need to be switched
++            if (activate_status[0][1] == 0 and activate_status[0][0] == self.name and toolhead.get_extruder() is self and
++                ((self.get_park_detector_status() is None and action is None) or (self.get_park_detector_status() is not None and action != 'PARK'))):
++                gcmd.respond_info("Extruder %s already active" % (self.name,))
++                is_grab_complete = True
++                return
++
++            if activate_status[0][1] == 1 and action == 'PARK':
++                gcmd.respond_info("All extruder is parked")
++                return
++
++            print_fan = self.printer.lookup_object('fan', None)
++            print_fan_speed = None
++            current_time = self.printer.get_reactor().monotonic()
++            if print_fan is not None:
++                print_fan_speed = print_fan.get_status(current_time)['speed']
++                print_fan.fan.set_speed_from_command(0)
++
++            # enable pwm pin in order to detect the extruder gripping state
++            for i in range(len(extruder_list)):
++                if extruder_list[i].binding_fan is not None and extruder_list[i].switch_extruder_ctr_fan_pwm:
++                    extruder_list[i].binding_fan.set_speed_from_command(1, False)
++
++            fan_pwm_set = True
++            fan_close_tick = toolhead.reactor.monotonic()
++
++            # Save current environment
++            saved_states = {
++                'absolute_coord': gcode_move.absolute_coord,
++                'absolute_extrude': gcode_move.absolute_extrude,
++                'base_position': list(gcode_move.base_position),
++                'last_position': list(gcode_move.last_position),
++                'homing_position': list(gcode_move.homing_position),
++                'speed': gcode_move.speed, 'speed_factor': gcode_move.speed_factor,
++                'extrude_factor': gcode_move.extrude_factor,
++                'fan_speed': print_fan_speed,
++                'max_accel': toolhead.max_accel,
++            }
++
++            # use lower acceleration to switch toolhead
++            # toolhead.set_accel(5000)
++
++            if activate_status[0][1] == 0 or (forced_park and retry_extruder_id is not None):
++                # Park extruder
++                if not forced_park:
++                    cur_extruder = self.printer.lookup_object(activate_status[0][0], None)
++                    if cur_extruder is None:
++                        raise gcmd.error("The current extruder lookup object failed")
++
++                    cur_extruder_state = cur_extruder.get_park_detector_status()
++                    if cur_extruder_state is not None and cur_extruder_state['state'] != 'ACTIVATE':
++                        state, park_pin = cur_extruder_state['state'], cur_extruder_state['park_pin']
++                        active_pin, grab_valid_pin = cur_extruder_state['active_pin'], cur_extruder_state['grab_valid_pin']
++                        pin_sta = ''.join(['T' if x else 'F' for x in [park_pin, active_pin, grab_valid_pin]])
++                        msg = f"Parking is not allowed for {cur_extruder.name}, status: {state} [{pin_sta}]"
++                        message = '{"coded": "0002-0523-%4d-0019", "oneshot": %d, "msg":"%s", "action": "pause"}' % (cur_extruder.extruder_num, 0, msg)
++                        raise gcmd.error(message)
++                        # raise gcmd.error("Unknown extruder park status, {}: {}".format(activate_status[0][0], cur_extruder_state))
++
++                    if cur_extruder_state is None and action == 'PARK':
++                        cur_extruder = self
++                else:
++                    cur_extruder = extruder_list[retry_extruder_id]
++                    cur_extruder_state = None
++
++                if cur_extruder.xy_park_position is not None and ((activate_status[0][0] != self.name and action is None) or
++                    (cur_extruder_state is None and action == 'PARK') or (cur_extruder_state is not None and
++                    (action == 'PARK' or (action == 'PICK' and activate_status[0][0] != self.name)))):
++                    restore_state = True
++                    # gcode_move.absolute_coord = True
++                    if self.switch_accel != toolhead.max_accel:
++                        toolhead.set_accel(self.switch_accel)
++                    # cur_extruder.set_park_detector_enable(False)
++                    x_move_position = cur_extruder.xy_park_position[0] + [1, -1][not cur_extruder.grab_dir] * \
++                                    (cur_extruder.horizontal_move_x - cur_extruder.retract_x_dist)
++                    gcmd.respond_info("park {} !!!".format(cur_extruder.name))
++                    pos = toolhead.get_position()
++                    if pos[1] > cur_extruder.y_idle_position:
++                        toolhead.manual_move([None, cur_extruder.y_idle_position, None], cur_extruder.fast_move_speed)
++                        # gcmd.respond_info("G0 Y{} F{}".format(cur_extruder.y_idle_position, cur_extruder.fast_move_speed*60))
++
++                        toolhead.manual_move([x_move_position + [1, -1][cur_extruder.grab_dir]*0.5, None, None], cur_extruder.fast_move_speed)
++                        # gcmd.respond_info("G0 X{} F{}".format(x_move_position + [1, -1][cur_extruder.grab_dir]*0.5, cur_extruder.fast_move_speed*60))
++                        toolhead.manual_move([x_move_position, None, None], cur_extruder.fast_move_speed)
++                        # gcmd.respond_info("G0 X{} F{}".format(x_move_position,cur_extruder.fast_move_speed*60))
++                    else:
++                        toolhead.manual_move([x_move_position + [1, -1][cur_extruder.grab_dir]*0.5, None, None], cur_extruder.fast_move_speed)
++                        # gcmd.respond_info("G0 X{} F{}".format(x_move_position + [1, -1][cur_extruder.grab_dir]*0.5, cur_extruder.fast_move_speed*60))
++                        toolhead.manual_move([x_move_position, None, None], cur_extruder.fast_move_speed)
++                        # gcmd.respond_info("G0 X{} F{}".format(x_move_position, cur_extruder.fast_move_speed*60))
++
++                        toolhead.manual_move([None, cur_extruder.y_idle_position, None], cur_extruder.fast_move_speed)
++                        # gcmd.respond_info("G0 Y{} F{}".format(cur_extruder.y_idle_position, cur_extruder.fast_move_speed*60))
++
++                    y_move_position = max(cur_extruder.xy_park_position[1] - cur_extruder.inser_buffer_dist, cur_extruder.y_idle_position)
++                    toolhead.manual_move([None, y_move_position, None], cur_extruder.fast_move_speed)
++                    # gcmd.respond_info("G0 Y{} F{}".format(y_move_position, cur_extruder.fast_move_speed*60))
++                    toolhead.manual_move([None, cur_extruder.xy_park_position[1], None], cur_extruder.slow_move_speed)
++                    # gcmd.respond_info("G0 Y{} F{}".format(cur_extruder.xy_park_position[1], cur_extruder.slow_move_speed*60))
++
++                    toolhead.manual_move([cur_extruder.xy_park_position[0], None, None], cur_extruder.slow_move_speed)
++                    # gcmd.respond_info("G0 X{} F{}".format(cur_extruder.xy_park_position[0], cur_extruder.slow_move_speed*60))
++
++                    toolhead.manual_move([None, cur_extruder.y_idle_position, None], cur_extruder.fast_move_speed)
++                    # gcmd.respond_info("G0 Y{} F{}".format(cur_extruder.y_idle_position, cur_extruder.fast_move_speed*60))
++                    toolhead.wait_moves()
++                    # toolhead.dwell(0.1)
++                    for i in range(10):
++                        cur_extruder_state = cur_extruder.get_park_detector_status()
++                        if not (cur_extruder_state is not None and cur_extruder_state['state'] != 'PARKED'):
++                            break
++                        else:
++                            if i == 9:
++                                if cur_extruder_state is not None:
++                                    state, park_pin = cur_extruder_state['state'], cur_extruder_state['park_pin']
++                                    active_pin, grab_valid_pin = cur_extruder_state['active_pin'], cur_extruder_state['grab_valid_pin']
++                                    pin_sta = ''.join(['T' if x else 'F' for x in [park_pin, active_pin, grab_valid_pin]])
++                                    msg = f"Extruder {cur_extruder.name} malfunction after parking, state: {state} [{pin_sta}]"
++                                    message = '{"coded": "0002-0523-%4d-0020", "oneshot": %d, "msg":"%s", "action": "pause"}' % (cur_extruder.extruder_num, 0, msg)
++                                    if self.grab_hall_sensor_type:
++                                        if pin_sta == 'FTT' or pin_sta == 'FTF':
++                                            msg = f"Extruder {cur_extruder.name} malfunction after parking, {cur_extruder.name} failed to return to park position. state: {state} [{pin_sta}]"
++                                            message = '{"coded": "0002-0523-%4d-0042", "oneshot": %d, "msg":"%s", "action": "pause"}' % (cur_extruder.extruder_num, 0, msg)
++                                        elif pin_sta == 'FFT' or pin_sta == 'FFF':
++                                            msg = f"Extruder {cur_extruder.name} malfunction after parking, {cur_extruder.name} detached detected. state: {state} [{pin_sta}]"
++                                            message = '{"coded": "0002-0523-%4d-0043", "oneshot": %d, "msg":"%s", "action": "pause"}' % (cur_extruder.extruder_num, 0, msg)
++                                        elif pin_sta == 'TTT' or pin_sta == 'TTF':
++                                            msg = f"Extruder {cur_extruder.name} malfunction after parking, conflicting status detected: both parked and picked states. state: {state} [{pin_sta}]"
++                                            message = '{"coded": "0002-0523-%4d-0044", "oneshot": %d, "msg":"%s", "action": "pause"}' % (cur_extruder.extruder_num, 0, msg)
++                                    raise gcmd.error(message)
++                                else:
++                                    raise gcmd.error("Extruder malfunction after parking, {}: {}".format(cur_extruder.name, cur_extruder_state), 'pause')
++                            gcmd.respond_info(f"Post-park check failed for {cur_extruder.name}, retry {i}")
++                            toolhead.dwell(0.2)
++                            toolhead.wait_moves()
++                    # cur_extruder_state = cur_extruder.get_park_detector_status()
++                    # if cur_extruder_state is not None and cur_extruder_state['state'] != 'PARKED':
++                    #     raise gcmd.error("Abnormal state detection after extruder park, {}: {}".format(cur_extruder.name, cur_extruder_state))
++
++            if action == 'PARK':
++                raise ExtruderParkAction("park action success!!!")
++
++            # if self.xy_park_position is not None and not (activate_status[0][0] == self.name and activate_status[0][1] == 0):
++            extruder_state = self.get_park_detector_status()
++            if (self.xy_park_position is not None and (extruder_state is None or (extruder_state is not None and
++                not (activate_status[0][0] == self.name and activate_status[0][1] == 0)))):
++                for i in range(10):
++                    extruder_state = self.get_park_detector_status()
++                    if not (extruder_state is not None and extruder_state['state'] != 'PARKED'):
++                        break
++                    else:
++                        if i == 9:
++                            if extruder_state is not None:
++                                state, park_pin = extruder_state['state'], extruder_state['park_pin']
++                                active_pin, grab_valid_pin = extruder_state['active_pin'], extruder_state['grab_valid_pin']
++                                pin_sta = ''.join(['T' if x else 'F' for x in [park_pin, active_pin, grab_valid_pin]])
++                                msg = f"Picking is not allowed for the {self.name}, status: {state} [{pin_sta}]"
++                                message = '{"coded": "0002-0523-%4d-0021", "oneshot": %d, "msg":"%s", "action": "pause"}' % (self.extruder_num, 0, msg)
++                                raise gcmd.error(message)
++                            else:
++                                raise gcmd.error("Pre-pick check failed for {}, {}".format(self.name, extruder_state), 'pause')
++                        gcmd.respond_info(f"Pre-pick check failed for {self.name}, retry {i}")
++                        toolhead.dwell(0.2)
++                        toolhead.wait_moves()
++
++                # gcode_move.absolute_coord = True
++                restore_state = True
++                if self.switch_accel != toolhead.max_accel:
++                    toolhead.set_accel(self.switch_accel)
++                gcmd.respond_info("pick {} !!!".format(self.name))
++                x_move_position = self.xy_park_position[0]
++                pos = toolhead.get_position()
++                if pos[1] > self.y_idle_position:
++                    toolhead.manual_move([None, self.y_idle_position, None], self.fast_move_speed)
++                    # gcmd.respond_info("G0 Y{} F{}".format(self.y_idle_position, self.fast_move_speed*60))
++
++                    toolhead.manual_move([x_move_position + [1, -1][self.grab_dir]*0.5, None, None], self.fast_move_speed)
++                    # gcmd.respond_info("G0 X{} F{}".format(x_move_position + [1, -1][self.grab_dir]*0.5, self.fast_move_speed*60))
++                    toolhead.manual_move([x_move_position, None, None], self.fast_move_speed)
++                    # gcmd.respond_info("G0 X{} F{}".format(x_move_position, self.fast_move_speed*60))
++                else:
++                    toolhead.manual_move([x_move_position + [1, -1][self.grab_dir]*0.5, None, None], self.fast_move_speed)
++                    # gcmd.respond_info("G0 X{} F{}".format(x_move_position + [1, -1][self.grab_dir]*0.5, self.fast_move_speed*60))
++                    toolhead.manual_move([x_move_position, None, None], self.fast_move_speed)
++                    # gcmd.respond_info("G0 X{} F{}".format(x_move_position, self.fast_move_speed*60))
++
++                    toolhead.manual_move([None, self.y_idle_position, None], self.fast_move_speed)
++                    # gcmd.respond_info("G0 Y{} F{}".format(self.y_idle_position, self.fast_move_speed*60))
++
++                y_move_position = max(self.xy_park_position[1] - self.inser_buffer_dist, self.y_idle_position)
++                toolhead.manual_move([None, y_move_position, None], self.fast_move_speed)
++                # gcmd.respond_info("G0 Y{} F{}".format(y_move_position, self.fast_move_speed*60))
++
++                toolhead.manual_move([None, self.xy_park_position[1], None], self.slow_move_speed)
++                # gcmd.respond_info("G0 Y{} F{}".format(self.xy_park_position[1], self.slow_move_speed*60))
++
++                x_move_position = self.xy_park_position[0] + [-1, 1][self.grab_dir]*self.horizontal_move_x
++                toolhead.manual_move([x_move_position, None, None], self.grab_speed)
++                # gcmd.respond_info("G0 X{} F{}".format(x_move_position, self.grab_speed*60))
++
++                toolhead.manual_move([x_move_position+[1, -1][self.grab_dir]*self.retract_x_dist, None, None], self.grab_speed)
++                # gcmd.respond_info("G0 X{} F{}".format(x_move_position+[1, -1][self.grab_dir]*self.retract_x_dist, self.grab_speed*60))
++
++                toolhead.manual_move([None, self.y_idle_position, None], self.fast_move_speed)
++                # gcmd.respond_info("G0 Y{} F{}".format(self.y_idle_position, self.fast_move_speed*60))
++
++                toolhead.wait_moves()
++                check_tick = toolhead.reactor.monotonic()
++                if self.switch_extruder_ctr_fan_pwm and check_tick - fan_close_tick < 2.5:
++                    gcmd.respond_info("wait_moves {}s!!!".format(2.5 - (check_tick - fan_close_tick)))
++                    toolhead.dwell(2.5 - (check_tick - fan_close_tick))
++                    toolhead.wait_moves()
++                if self.get_park_detector_status() is not None:
++                    for i in range(10):
++                        extruder_state = self.get_extruder_activate_status()
++                        retry_extruder_id = self.check_allow_retry_switch_extruder()
++                        if (extruder_state[0][1] == 0 and extruder_state[0][0] == self.name):
++                            break
++                        else:
++                            if i == 9:
++                                code = 35
++                                msg = "Extruder pickup failed, {}".format(extruder_state)
++                                extruder_num = self.extruder_num
++                                if extruder_state[0][1] == 0:
++                                    code = 22
++                                    msg = f"{self.name} pickup failed, target: {self.name} current: {extruder_state[0][0]}"
++                                elif extruder_state[0][1] == 1:
++                                    code = 23
++                                    msg = f"{self.name} pickup failed"
++                                elif extruder_state[0][1] == 2:
++                                    result = self.analyze_switch_extruder_error(extruder_state)
++                                    if result:
++                                        error_msg, activated, unknown, grip_states, activated_code, unknown_code = result
++                                        if "multi-act" in error_msg:
++                                            if 23 + activated_code < 35:
++                                                code = 23 + activated_code
++                                        else:
++                                            code = 35
++                                            if self.grab_hall_sensor_type:
++                                                first_unknow_state = grip_states[unknown[0]]
++                                                if first_unknow_state == 'FFT':
++                                                    code = 45
++                                                    extruder_num = unknown[0]
++                                                    error_msg = f'detected that extruder{unknown[0]} pogopin not connected. {error_msg}'
++                                                elif first_unknow_state == 'FFF':
++                                                    code = 46
++                                                    extruder_num = unknown[0]
++                                                    error_msg = f'detected that extruder{unknown[0]} is detached. {error_msg}'
++                                                elif first_unknow_state == 'TTT' or first_unknow_state == 'TTF':
++                                                    code = 47
++                                                    extruder_num = unknown[0]
++                                                    error_msg = f'detected conflicting status for extruder{unknown[0]}: both parked and picked states. {error_msg}'
++                                        msg = f"Extruder {self.name} pickup failed, {error_msg}"
++                                message = '{"coded": "0002-0523-%4d-%4d", "oneshot": %d, "msg":"%s", "action": "pause"}' % (extruder_num, code, 0, msg)
++                                if retry_extruder_id is not None:
++                                    raise ExtruderPickAbnormal(message)
++                                else:
++                                    raise gcmd.error(message)
++                            gcmd.respond_info("After picking the extruder, checking retry attempt {}, retry_extruder_id: {}".format(i, retry_extruder_id))
++                            toolhead.dwell(0.2)
++                            toolhead.wait_moves()
++            switch_recorder = self.printer.lookup_object('extruder_switch_recorder', None)
++            if switch_recorder is not None:
++                switch_recorder.add_switch_count(self.name)
++            switch_complete, is_grab_complete = True, True
++        except ExtruderParkAction as e:
++            pass
++        except Exception as e:
++            # if activate_status is not None:
++            #     gcmd.respond_info("extruder state: {}".format(activate_status))
++            raise
++        finally:
++            self.activating_move = False
++            for i in range(len(extruder_list)):
++                if fan_pwm_set and extruder_list[i].binding_fan is not None and extruder_list[i].switch_extruder_ctr_fan_pwm:
++                    extruder_list[i].binding_fan.set_speed_from_command(0)
++                    # print_time = max(extruder_list[i].binding_fan.last_fan_time+0.1, toolhead.get_last_move_time())
++                    # extruder_list[i].binding_fan.mcu_fan.set_pwm(print_time, 0)
++
++                if extruder_list[i].vref_sw is not None:
++                    if extruder_list[i].name == self.name:
++                        toolhead.register_lookahead_callback(lambda print_time: extruder_list[i].vref_sw._set_pin(print_time, 1))
++                        # extruder_list[i].vref_sw._set_pin(toolhead.get_last_move_time(), 1)
++                    else:
++                        toolhead.register_lookahead_callback(lambda print_time: extruder_list[i].vref_sw._set_pin(print_time, 0))
++                        # extruder_list[i].vref_sw._set_pin(toolhead.get_last_move_time(), 0)
++
++            if restore_state == True:
++                # Restore state
++                gcode_move.absolute_coord = saved_states['absolute_coord']
++                gcode_move.absolute_extrude = saved_states['absolute_extrude']
++                gcode_move.base_position = list(saved_states['base_position'])
++                gcode_move.homing_position = list(saved_states['homing_position'])
++                gcode_move.speed = saved_states['speed']
++                gcode_move.speed_factor = saved_states['speed_factor']
++                gcode_move.extrude_factor = saved_states['extrude_factor']
++                # Restore the relative E position
++                e_diff = gcode_move.last_position[3] - saved_states['last_position'][3]
++                gcode_move.base_position[3] += e_diff
++                if saved_states['max_accel'] != toolhead.max_accel:
++                    toolhead.set_accel(saved_states['max_accel'])
++                # gcmd.respond_info("Restore state")
++
++            if switch_complete == True:
++                # Activating extruder
++                gcmd.respond_info("Activating extruder %s" % (self.name,))
++                toolhead.flush_step_generation()
++                toolhead.set_extruder(self, self.last_position)
++                self.printer.send_event("extruder:activate_extruder")
++
++                # binding probe
++                self.active_binding_probe()
++                self.active_binding_fan()
++                # gcmd.respond_info("enable fan,  set turn on {}".format(saved_states['fan_speed']))
++                if saved_states['fan_speed'] is not None and saved_states['fan_speed'] > 0:
++                    print_fan.fan.set_speed_from_command(saved_states['fan_speed'])
++
++                # The current operation forces gcode_offset to be overwritten, and specific optimizations can be added later
++                if self.base_position is not None and self.gcode_offset is not None:
++                    build_params = {}
++                    build_params['X'] = str(self.gcode_offset[0])
++                    build_params['Y'] = str(self.gcode_offset[1])
++                    build_params['Z'] = str(self.gcode_offset[2])
++                    build_params['MOVE'] = '0'
++                    # gcmd.respond_info("gcode offset: {}".format(build_params))
++                    restore_offset_gcmd = gcode.create_gcode_command("", "", build_params)
++                    gcode_move.cmd_SET_GCODE_OFFSET(restore_offset_gcmd)
++            toolhead.set_grab_complete(is_grab_complete)
++
++    def cmd_MOVE_TO_XY_IDLE_POSITION(self, gcmd):
++        gcode_move = self.printer.lookup_object('gcode_move')
++        toolhead = self.printer.lookup_object('toolhead')
++        current_extruder = toolhead.get_extruder()
++        x_offset = gcmd.get_float('X_OFFSET', 0.)
++        y_offset = gcmd.get_float('Y_OFFSET', 0.)
++        z_offset = gcmd.get_float('Z_OFFSET', None)
++        speed = gcmd.get_float('SPEED', 200.)
++        accel = gcmd.get_float('ACCEL', None)
++
++        if not self.check_xy_homing():
++            raise gcmd.error("Activate extruder must home XY first")
++
++        x_idle_position = current_extruder.xy_park_position[0] + [1, -1][not current_extruder.grab_dir] * \
++                (current_extruder.horizontal_move_x - current_extruder.retract_x_dist)
++        if (current_extruder.name == "extruder"):
++            x_idle_position -= 2
++
++        y_idle_position = current_extruder.y_idle_position
++
++        toolhead.wait_moves()
++        gcode_move_status = gcode_move.get_status()
++        gcode_move.absolute_coord = True
++        old_accel = toolhead.max_accel
++        if accel == None:
++            accel = old_accel
++        pos = toolhead.get_position()
++        if not (pos[0] == x_idle_position + x_offset and pos[1] == y_idle_position + y_offset):
++            toolhead.max_accel = accel
++            toolhead._calc_junction_deviation()
++            if z_offset is not None:
++                toolhead.manual_move([None, None, pos[2] + z_offset], speed)
++            if pos[1] > current_extruder.y_idle_position:
++                toolhead.manual_move([None, y_idle_position, None], speed)
++                toolhead.manual_move([x_idle_position+x_offset, None, None], speed)
++                toolhead.manual_move([None, y_idle_position+y_offset, None], speed)
++            else:
++                toolhead.manual_move([x_idle_position+x_offset, None, None], speed)
++                toolhead.manual_move([None, y_idle_position+y_offset, None], speed)
++            toolhead.max_accel = old_accel
++            toolhead._calc_junction_deviation()
++            toolhead.wait_moves()
++
++        if not gcode_move_status['absolute_coordinates']:
++            gcode_move.absolute_coord = False
++
++    def cmd_INNER_APPLY_FLOW_K(self, gcmd):
++        apply = gcmd.get_int('APPLY', None)
++
++        if apply is not None:
++            if apply == 0:
++                self.is_calibrating_flow = False
++            else:
++                self.is_calibrating_flow = True
++    def cmd_SET_EXTRUDER_BASE_POSITION(self, gcmd):
++        # Check if this is the first time setting base_position
++        is_first_time = self.base_position is None
++
++        # Create new base position values
++        new_base_position = list(self.base_position) if self.base_position is not None else [0.0, 0.0, 0.0]
++
++        # Check for invalid use of _ADJUST parameters
++        has_adjust_params = any(gcmd.get_float(axis + '_ADJUST', None) is not None for axis in 'XYZ')
++        if is_first_time and has_adjust_params:
++            raise gcmd.error("Cannot use X_ADJUST, Y_ADJUST, or Z_ADJUST when base_position is not set. Use absolute values (X, Y, Z) instead.")
++
++        # Process parameters using the same pattern as gcode_move.py
++        any_param_specified = False
++        specified_axes = [False, False, False]  # X, Y, Z
++        for pos, axis in enumerate('XYZ'):
++            offset = gcmd.get_float(axis, None)
++            if offset is None:
++                offset = gcmd.get_float(axis + '_ADJUST', None)
++                if offset is None:
++                    continue
++                # Apply adjustment to current value
++                offset += new_base_position[pos]
++            # Set the new value
++            new_base_position[pos] = offset
++            any_param_specified = True
++            specified_axes[pos] = True
++
++        if not any_param_specified:
++            if self.base_position is not None:
++                gcmd.respond_info("Base position for %s: X:%.3f Y:%.3f Z:%.3f" %
++                                 (self.name, self.base_position[0], self.base_position[1], self.base_position[2]))
++            else:
++                gcmd.respond_info("Base position for %s is not set" % (self.name,))
++            return
++
++        # For first time setup, all axes must be specified
++        if is_first_time and not all(specified_axes):
++            raise gcmd.error("When setting base_position for the first time, all three axes (X, Y, Z) must be specified.")
++
++        # Update the base position in memory
++        self.base_position = new_base_position
++
++        # Save to config
++        configfile = self.printer.lookup_object('configfile')
++        extruder_bak = self.printer.lookup_object('extruder_config_bak', None)
++        if extruder_bak is None or not os.path.exists(extruder_bak.base_position_config_path):
++            configfile.set(self.name, 'base_position',
++                        "\n%.6f, %.6f, %.6f\n" % (self.base_position[0], self.base_position[1], self.base_position[2]))
++            self.printer.lookup_object('gcode').run_script_from_command("SAVE_CONFIG RESTART=0")
++        else:
++            if not self.update_extruder_config("base_position", new_base_position):
++                gcmd.respond_info("Warning: Failed to save base position to config file")
++
++        gcmd.respond_info("Base position for %s set to X:%.3f Y:%.3f Z:%.3f" %
++                         (self.name, new_base_position[0], new_base_position[1], new_base_position[2]))
++        # Update the gcode offset
++        self.printer.send_event("probe_inductance_coil: update_extruder_offset")
++
++    def cmd_SET_EXTRUDER_PARK_POSITION(self, gcmd):
++        # Check if park position is already set
++        if self.xy_park_position is None or self.y_idle_position is None:
++            raise gcmd.error("Park position is not set. Cannot modify park position.")
++
++        # Create new park position values
++        new_xy_park_position = list(self.xy_park_position)
++        new_y_idle_position = self.y_idle_position
++        force_save = not not gcmd.get_int('FORCE_SAVE', 0)
++
++        # Process XY parameters
++        any_param_specified = False
++        for pos, axis in enumerate('XY'):
++            offset = gcmd.get_float(axis, None)
++            if offset is None:
++                offset = gcmd.get_float(axis + '_ADJUST', None)
++                if offset is None:
++                    continue
++                # Apply adjustment to current value
++                offset += new_xy_park_position[pos]
++            # Set the new value
++            new_xy_park_position[pos] = offset
++            any_param_specified = True
++
++        # Process Y_IDLE parameter
++        y_idle = gcmd.get_float('Y_IDLE', None)
++        if y_idle is None:
++            y_idle = gcmd.get_float('Y_IDLE_ADJUST', None)
++            if y_idle is None:
++                # Keep current value
++                y_idle = new_y_idle_position
++            else:
++                # Apply adjustment to current value
++                y_idle += new_y_idle_position
++                any_param_specified = True
++        else:
++            any_param_specified = True
++
++        if not any_param_specified:
++            # If no parameters specified, just report current values
++            gcmd.respond_info("Park position for %s: X:%.3f Y:%.3f Y_IDLE:%.3f" %
++                             (self.name, self.xy_park_position[0], self.xy_park_position[1], self.y_idle_position))
++            return
++
++        x_diff = abs(new_xy_park_position[0] - self.xy_park_position[0])
++        y_diff = abs(new_xy_park_position[1] - self.xy_park_position[1])
++
++        if (x_diff > MAX_ALLOWED_DIFFERENCE or
++            y_diff > MAX_ALLOWED_DIFFERENCE) and not force_save:
++            diff_details = []
++            if x_diff > MAX_ALLOWED_DIFFERENCE:
++                diff_details.append(f"X: {x_diff:.3f}mm")
++            if y_diff > MAX_ALLOWED_DIFFERENCE:
++                diff_details.append(f"Y: {y_diff:.3f}mm")
++            msg = (f"New park position differs too much. Exceeded: {', '.join(diff_details)}. "
++                      f"Max allowed: {MAX_ALLOWED_DIFFERENCE:.3f}mm. Use FORCE_SAVE=1 to override.")
++            err_msg = '{"coded": "0003-0530-0000-0023", "msg":"%s"}' % (msg)
++            raise gcmd.error(err_msg)
++
++        # if (not self.printer.check_extruder_config_permission() and not force_save):
++        #     raise gcmd.error("Permission denied. Park position modification not allowed.")
++
++        # Show what values are changing from and to
++        gcmd.respond_info("Park position for %s changed from X:%.3f Y:%.3f Y_IDLE:%.3f to X:%.3f Y:%.3f Y_IDLE:%.3f" %
++                         (self.name,
++                          self.xy_park_position[0], self.xy_park_position[1], self.y_idle_position,
++                          new_xy_park_position[0], new_xy_park_position[1], y_idle))
++
++        # Update the park position in memory
++        self.xy_park_position = new_xy_park_position
++        self.y_idle_position = y_idle
++
++        # Save to config
++        configfile = self.printer.lookup_object('configfile')
++        extruder_bak = self.printer.lookup_object('extruder_config_bak', None)
++        if extruder_bak is None or not os.path.exists(extruder_bak.config_path):
++            configfile.set(self.name, 'xy_park_position',
++                        "\n%.6f, %.6f\n" % (self.xy_park_position[0], self.xy_park_position[1]))
++            configfile.set(self.name, 'y_idle_position', "%.6f" % (self.y_idle_position,))
++            self.printer.lookup_object('gcode').run_script_from_command("SAVE_CONFIG RESTART=0")
++        else:
++            park_data = {
++                'xy_park_position': self.xy_park_position,
++                'y_idle_position': self.y_idle_position
++            }
++            if not self.update_extruder_config(None, park_data):
++                gcmd.respond_info("Warning: Failed to save park position to config file")
++
++        gcmd.respond_info("Park position for %s set to X:%.3f Y:%.3f Y_IDLE:%.3f" %
++                         (self.name, new_xy_park_position[0], new_xy_park_position[1], y_idle))
++
++    def cmd_ENTER_PARK_POINT_MANUAL_CALIBRATION(self, gcmd):
++        if not hasattr(self, 'xy_park_position') or self.xy_park_position is None:
++            err_msg = '{"coded": "0003-0530-0000-0019", "msg":"Park position is not configured, Cannot enter park point manual calibration"}'
++            raise gcmd.error(err_msg)
++        self.printer.lookup_object('gcode').run_script_from_command("SET_MAIN_STATE MAIN_STATE=PARK_POINT_MANUAL_CALIBRATION")
++        self.printer.lookup_object('gcode').run_script_from_command("SET_IDLE_TIMEOUT TIMEOUT=9999999999")
++    def cmd_EXIT_PARK_POINT_MANUAL_CALIBRATION(self, gcmd):
++        machine_state_manager = self.printer.lookup_object('machine_state_manager', None)
++        if machine_state_manager and str(machine_state_manager.get_status()['main_state']) == "PARK_POINT_MANUAL_CALIBRATION":
++            self.printer.lookup_object('gcode').run_script_from_command("EXIT_TO_IDLE REQ_FROM_STATE=PARK_POINT_MANUAL_CALIBRATION")
++            self.printer.lookup_object('gcode').run_script_from_command("SET_IDLE_TIMEOUT TIMEOUT=300")
++    def cmd_MOVE_TO_PARK_CALIBRATION_POINT(self, gcmd):
++        if not hasattr(self, 'xy_park_position') or self.xy_park_position is None:
++            err_msg = '{"coded": "0003-0530-0000-0019", "msg":"Park position is not configured, Cannot enter park point manual calibration"}'
++            raise gcmd.error(err_msg)
++
++        # machine_state_manager = self.printer.lookup_object('machine_state_manager', None)
++        # if machine_state_manager and str(machine_state_manager.get_status()['main_state']) != "PARK_POINT_MANUAL_CALIBRATION":
++        #     err_msg = '{"coded": "0003-0530-0000-0019", "msg":"Main state is not PARK_POINT_MANUAL_CALIBRATION, Cannot move to park point"}'
++        #     raise gcmd.error(err_msg)
++
++        if hasattr(self, 'park_detector') and self.park_detector is not None:
++            extruder_state = self.get_extruder_activate_status()
++            if extruder_state[0][1] != 1:
++                err_msg = '{"coded": "0003-0530-0000-0020", "msg":"All extruders must be parked, Cannot move to park point"}'
++                raise gcmd.error(err_msg)
++
++        self.printer.lookup_object('gcode').run_script_from_command("SET_ACTION_CODE ACTION=PARK_POINT_MANUAL_CALIBRATING")
++        xy_park_position = copy.deepcopy(self.xy_park_position)
++        move_calibration_x = xy_park_position[0]
++        move_calibration_y = 320
++
++        force_move = not not gcmd.get_int('FORCE_MOVE', 0)
++        macro = self.printer.lookup_object('gcode_macro _MOVE_TO_{}_PARK_CALIBRATION_POINT'.format(self.name.upper()), None)
++        if macro is not None:
++            move_calibration_x = macro.variables.get('x_pos', move_calibration_x)
++            move_calibration_y = macro.variables.get('y_pos', move_calibration_y)
++
++        move_calibration_x = gcmd.get_float('X', move_calibration_x)
++        move_calibration_y = gcmd.get_float('Y', move_calibration_y)
++
++        x_diff = abs(move_calibration_x - self.xy_park_position[0])
++        if (x_diff > MAX_ALLOWED_DIFFERENCE and not force_move):
++            msg = (f"Move to park calibration position X differs too much from current position. Exceeded: X: {x_diff:.3f}mm. "
++                  f"Max allowed: {MAX_ALLOWED_DIFFERENCE:.3f}mm.")
++            err_msg = '{"coded": "0003-0530-0000-0023", "msg":"%s"}' % (msg)
++            raise gcmd.error(err_msg)
++
++        toolhead = self.printer.lookup_object('toolhead')
++        pos = toolhead.get_position()
++        if pos[1] > self.y_idle_position:
++            toolhead.manual_move([None, self.y_idle_position, None], 200)
++
++        if move_calibration_y > self.y_idle_position:
++            toolhead.manual_move([move_calibration_x, None], 200)
++        toolhead.manual_move([move_calibration_x, move_calibration_y], 200)
++
++    def cmd_VERIFY_PARK_POSITION(self, gcmd):
++        if not hasattr(self, 'xy_park_position') or self.xy_park_position is None:
++            err_msg = '{"coded": "0003-0530-0000-0019", "msg":"Park position is not configured, Cannot enter park point manual calibration"}'
++            raise gcmd.error(err_msg)
++
++        # machine_state_manager = self.printer.lookup_object('machine_state_manager', None)
++        # if machine_state_manager and str(machine_state_manager.get_status()['main_state']) != "PARK_POINT_MANUAL_CALIBRATION":
++        #     err_msg = '{"coded": "0003-0530-0000-0019", "msg":"Main state is not PARK_POINT_MANUAL_CALIBRATION, can not verify park position"}'
++        #     raise gcmd.error(err_msg)
++
++        if hasattr(self, 'park_detector') and self.park_detector is not None:
++            extruder_state = self.get_extruder_activate_status()
++            if extruder_state[0][1] != 1:
++                err_msg = '{"coded": "0003-0530-0000-0020", "msg":"All extruders must be parked, Cannot move to park point"}'
++                raise gcmd.error(err_msg)
++
++        force_move = not not gcmd.get_int('FORCE_MOVE', 0)
++        verify_cnt = gcmd.get_int('VERIFY_CNT', 2, minval=1)
++        skip_home = gcmd.get_int('SKIP_HOME', 0, minval=0, maxval=1)
++        original_xy_park_position = copy.deepcopy(self.xy_park_position)
++        xy_park_position = copy.deepcopy(self.xy_park_position)
++        verify_x = gcmd.get_float('X', xy_park_position[0])
++        verify_y = gcmd.get_float('Y', xy_park_position[1])
++        xy_park_position[0] = verify_x
++        xy_park_position[1] = verify_y
++
++        x_diff = abs(verify_x - self.xy_park_position[0])
++        if (x_diff > MAX_ALLOWED_DIFFERENCE and not force_move):
++            msg = (f"Verify park position differs too much from current position. Exceeded: X: {x_diff:.3f}mm. "
++                  f"Max allowed: {MAX_ALLOWED_DIFFERENCE:.3f}mm.")
++            err_msg = '{"coded": "0003-0530-0000-0023", "msg":"%s"}' % (msg)
++            raise gcmd.error(err_msg)
++
++        try:
++            for i in range(verify_cnt):
++                try:
++                    self.xy_park_position[:] = xy_park_position
++                    self.printer.lookup_object('gcode').run_script_from_command("SET_ACTION_CODE ACTION=EXTRUDER_PICK_VERIFY")
++                    if i == 0 and not skip_home:
++                        self.printer.lookup_object('gcode').run_script_from_command("G28 X Y")
++                    self.cmd_PICK_EXTRUDER(gcmd)
++                except Exception as e:
++                    raw_msg = self.printer.extract_coded_message_field(str(e))
++                    err_msg = '{"coded": "0003-0530-%4d-0021", "msg":"%s"}' % (self.extruder_index, raw_msg)
++                    raise gcmd.error(err_msg)
++
++                try:
++                    self.printer.lookup_object('gcode').run_script_from_command("SET_ACTION_CODE ACTION=EXTRUDER_PARK_VERIFY")
++                    self.cmd_PARK_EXTRUDER(gcmd)
++                except Exception as e:
++                    raw_msg = self.printer.extract_coded_message_field(str(e))
++                    err_msg = '{"coded": "0003-0530-%4d-0022", "msg":"%s"}' % (self.extruder_index, raw_msg)
++                    raise gcmd.error(err_msg)
++        except Exception as e:
++            raise
++        finally:
++            try:
++                self.xy_park_position[:] = original_xy_park_position
++            except:
++                logging.warning("Failed to restore XY park position")
+ 
+ # Dummy extruder class used when a printer has no extruder at all
+ class DummyExtruder:
+     def __init__(self, printer):
+         self.printer = printer
+-    def check_move(self, move, ea_index):
++    def update_move_time(self, flush_time, clear_history_time):
++        pass
++    def check_move(self, move):
+         raise move.move_error("Extrude when no extruder present")
+     def find_past_position(self, print_time):
+         return 0.
+-    def calc_junction(self, prev_move, move, ea_index):
++    def calc_junction(self, prev_move, move):
+         return move.max_cruise_v2
+     def get_name(self):
+         return ""
+     def get_heater(self):
+         raise self.printer.command_error("Extruder not configured")
+     def get_trapq(self):
+-        return None
+-    def get_axis_gcode_id(self):
+-        return 'E'
++        raise self.printer.command_error("Extruder not configured")
+ 
+ def add_printer_objects(config):
++    global STRUCTURED_CODE_LIST
++    STRUCTURED_CODE_LIST = []
+     printer = config.get_printer()
++    extruder_list = []
++    park_position_config = park_check_config = None
+     for i in range(99):
+         section = 'extruder'
+         if i:
+             section = 'extruder%d' % (i,)
+         if not config.has_section(section):
+             break
++        if 0 == i:
++            extruder_switch_recorder = ExtruderSwitchRecorder(config.getsection(section))
++            printer.add_object('extruder_switch_recorder', extruder_switch_recorder)
+         pe = PrinterExtruder(config.getsection(section), i)
++        if 0 == i:
++            pe.active_binding_probe()
++            park_check_config = pe.park_detector
++            park_position_config = pe.xy_park_position
++        else:
++            if (park_check_config is None and pe.park_detector is not None) or (park_check_config is not None and pe.park_detector is None):
++                raise config.error("park_detector config mismatch,  extruder: {},  {}: {} !!!".format(
++                                  ['None', 'config'][park_check_config is not None],
++                                  pe.name, ['None', 'config'][pe.park_detector is not None]))
++
++            if (park_position_config is None and pe.xy_park_position is not None) or (park_position_config is not None and pe.xy_park_position is None):
++                raise config.error("xy_park_position config mismatch, extruder: {},  {}: {} !!!".format(
++                    ['None', 'config'][park_position_config is not None],
++                    pe.name, ['None', 'config'][pe.xy_park_position is not None]))
++        extruder_list.append(pe)
+         printer.add_object(section, pe)
++    printer.add_object('extruder_list', extruder_list)
+Only in /tmp/klipper-upstream/klippy/kinematics/: generic_cartesian.py
+diff -ru '--exclude=*.pyc' /tmp/klipper-upstream/klippy/kinematics/hybrid_corexy.py /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/hybrid_corexy.py
+--- /tmp/klipper-upstream/klippy/kinematics/hybrid_corexy.py	2026-03-30 17:21:21.962460385 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/hybrid_corexy.py	2026-03-30 17:20:31.219336509 +0000
+@@ -12,7 +12,7 @@
+     def __init__(self, toolhead, config):
+         self.printer = config.get_printer()
+         # itersolve parameters
+-        self.rails = [ stepper.LookupRail(config.getsection('stepper_x')),
++        self.rails = [ stepper.PrinterRail(config.getsection('stepper_x')),
+                        stepper.LookupMultiRail(config.getsection('stepper_y')),
+                        stepper.LookupMultiRail(config.getsection('stepper_z'))]
+         self.rails[1].get_endstops()[0][0].add_stepper(
+@@ -21,24 +21,29 @@
+         self.rails[1].setup_itersolve('cartesian_stepper_alloc', b'y')
+         self.rails[2].setup_itersolve('cartesian_stepper_alloc', b'z')
+         ranges = [r.get_range() for r in self.rails]
+-        self.axes_min = toolhead.Coord([r[0] for r in ranges])
+-        self.axes_max = toolhead.Coord([r[1] for r in ranges])
++        self.axes_min = toolhead.Coord(*[r[0] for r in ranges], e=0.)
++        self.axes_max = toolhead.Coord(*[r[1] for r in ranges], e=0.)
+         self.dc_module = None
+         if config.has_section('dual_carriage'):
+             dc_config = config.getsection('dual_carriage')
+             # dummy for cartesian config users
+             dc_config.getchoice('axis', ['x'], default='x')
+             # setup second dual carriage rail
+-            self.rails.append(stepper.LookupRail(dc_config))
++            self.rails.append(stepper.PrinterRail(dc_config))
+             self.rails[1].get_endstops()[0][0].add_stepper(
+                 self.rails[3].get_steppers()[0])
+             self.rails[3].setup_itersolve('corexy_stepper_alloc', b'+')
++            dc_rail_0 = idex_modes.DualCarriagesRail(
++                    self.rails[0], axis=0, active=True)
++            dc_rail_1 = idex_modes.DualCarriagesRail(
++                    self.rails[3], axis=0, active=False)
+             self.dc_module = idex_modes.DualCarriages(
+-                    self.printer, [self.rails[0]], [self.rails[3]], axes=[0],
+-                    safe_dist=[dc_config.getfloat(
+-                        'safe_distance', None, minval=0.)])
++                    dc_config, dc_rail_0, dc_rail_1, axis=0)
+         for s in self.get_steppers():
+             s.set_trapq(toolhead.get_trapq())
++            toolhead.register_step_generator(s.generate_steps)
++        self.printer.register_event_handler("stepper_enable:motor_off",
++                                                    self._motor_off)
+         # Setup boundary checks
+         max_velocity, max_accel = toolhead.get_max_velocity()
+         self.max_z_velocity = config.getfloat(
+@@ -64,18 +69,15 @@
+     def set_position(self, newpos, homing_axes):
+         for i, rail in enumerate(self.rails):
+             rail.set_position(newpos)
+-        for axis_name in homing_axes:
+-            axis = "xyz".index(axis_name)
+-            rail = None
+-            if self.dc_module and axis == 0:
+-                rail = self.dc_module.get_primary_rail(axis)
+-            if rail is None:
++        for axis in homing_axes:
++            if self.dc_module and axis == self.dc_module.axis:
++                rail = self.dc_module.get_primary_rail().get_rail()
++            else:
+                 rail = self.rails[axis]
+             self.limits[axis] = rail.get_range()
+-    def clear_homing_state(self, clear_axes):
+-        for axis, axis_name in enumerate("xyz"):
+-            if axis_name in clear_axes:
+-                self.limits[axis] = (1.0, -1.0)
++    def note_z_not_homed(self):
++        # Helper for Safe Z Home
++        self.limits[2] = (1.0, -1.0)
+     def home_axis(self, homing_state, axis, rail):
+         position_min, position_max = rail.get_range()
+         hi = rail.get_homing_info()
+@@ -91,9 +93,11 @@
+     def home(self, homing_state):
+         for axis in homing_state.get_axes():
+             if self.dc_module is not None and axis == 0:
+-                self.dc_module.home(homing_state, axis)
++                self.dc_module.home(homing_state)
+             else:
+                 self.home_axis(homing_state, axis, self.rails[axis])
++    def _motor_off(self, print_time):
++        self.limits = [(1.0, -1.0)] * 3
+     def _check_endstops(self, move):
+         end_pos = move.end_pos
+         for i in (0, 1, 2):
+diff -ru '--exclude=*.pyc' /tmp/klipper-upstream/klippy/kinematics/hybrid_corexz.py /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/hybrid_corexz.py
+--- /tmp/klipper-upstream/klippy/kinematics/hybrid_corexz.py	2026-03-30 17:21:21.962460385 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/hybrid_corexz.py	2026-03-30 17:20:31.219336509 +0000
+@@ -12,7 +12,7 @@
+     def __init__(self, toolhead, config):
+         self.printer = config.get_printer()
+         # itersolve parameters
+-        self.rails = [ stepper.LookupRail(config.getsection('stepper_x')),
++        self.rails = [ stepper.PrinterRail(config.getsection('stepper_x')),
+                        stepper.LookupMultiRail(config.getsection('stepper_y')),
+                        stepper.LookupMultiRail(config.getsection('stepper_z'))]
+         self.rails[2].get_endstops()[0][0].add_stepper(
+@@ -21,24 +21,29 @@
+         self.rails[1].setup_itersolve('cartesian_stepper_alloc', b'y')
+         self.rails[2].setup_itersolve('cartesian_stepper_alloc', b'z')
+         ranges = [r.get_range() for r in self.rails]
+-        self.axes_min = toolhead.Coord([r[0] for r in ranges])
+-        self.axes_max = toolhead.Coord([r[1] for r in ranges])
++        self.axes_min = toolhead.Coord(*[r[0] for r in ranges], e=0.)
++        self.axes_max = toolhead.Coord(*[r[1] for r in ranges], e=0.)
+         self.dc_module = None
+         if config.has_section('dual_carriage'):
+             dc_config = config.getsection('dual_carriage')
+             # dummy for cartesian config users
+             dc_config.getchoice('axis', ['x'], default='x')
+             # setup second dual carriage rail
+-            self.rails.append(stepper.LookupRail(dc_config))
++            self.rails.append(stepper.PrinterRail(dc_config))
+             self.rails[2].get_endstops()[0][0].add_stepper(
+                 self.rails[3].get_steppers()[0])
+             self.rails[3].setup_itersolve('corexz_stepper_alloc', b'+')
++            dc_rail_0 = idex_modes.DualCarriagesRail(
++                self.rails[0], axis=0, active=True)
++            dc_rail_1 = idex_modes.DualCarriagesRail(
++                self.rails[3], axis=0, active=False)
+             self.dc_module = idex_modes.DualCarriages(
+-                    self.printer, [self.rails[0]], [self.rails[3]], axes=[0],
+-                    safe_dist=[dc_config.getfloat(
+-                        'safe_distance', None, minval=0.)])
++                    dc_config, dc_rail_0, dc_rail_1, axis=0)
+         for s in self.get_steppers():
+             s.set_trapq(toolhead.get_trapq())
++            toolhead.register_step_generator(s.generate_steps)
++        self.printer.register_event_handler("stepper_enable:motor_off",
++                                                    self._motor_off)
+         # Setup boundary checks
+         max_velocity, max_accel = toolhead.get_max_velocity()
+         self.max_z_velocity = config.getfloat(
+@@ -64,18 +69,15 @@
+     def set_position(self, newpos, homing_axes):
+         for i, rail in enumerate(self.rails):
+             rail.set_position(newpos)
+-        for axis_name in homing_axes:
+-            axis = "xyz".index(axis_name)
+-            rail = None
+-            if self.dc_module and axis == 0:
+-                rail = self.dc_module.get_primary_rail(axis)
+-            if rail is None:
++        for axis in homing_axes:
++            if self.dc_module and axis == self.dc_module.axis:
++                rail = self.dc_module.get_primary_rail().get_rail()
++            else:
+                 rail = self.rails[axis]
+             self.limits[axis] = rail.get_range()
+-    def clear_homing_state(self, clear_axes):
+-        for axis, axis_name in enumerate("xyz"):
+-            if axis_name in clear_axes:
+-                self.limits[axis] = (1.0, -1.0)
++    def note_z_not_homed(self):
++        # Helper for Safe Z Home
++        self.limits[2] = (1.0, -1.0)
+     def home_axis(self, homing_state, axis, rail):
+         position_min, position_max = rail.get_range()
+         hi = rail.get_homing_info()
+@@ -91,9 +93,11 @@
+     def home(self, homing_state):
+         for axis in homing_state.get_axes():
+             if self.dc_module is not None and axis == 0:
+-                self.dc_module.home(homing_state, axis)
++                self.dc_module.home(homing_state)
+             else:
+                 self.home_axis(homing_state, axis, self.rails[axis])
++    def _motor_off(self, print_time):
++        self.limits = [(1.0, -1.0)] * 3
+     def _check_endstops(self, move):
+         end_pos = move.end_pos
+         for i in (0, 1, 2):
+diff -ru '--exclude=*.pyc' /tmp/klipper-upstream/klippy/kinematics/idex_modes.py /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/idex_modes.py
+--- /tmp/klipper-upstream/klippy/kinematics/idex_modes.py	2026-03-30 17:21:21.962460385 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/idex_modes.py	2026-03-30 17:20:31.219336509 +0000
+@@ -1,10 +1,10 @@
+ # Support for duplication and mirroring modes for IDEX printers
+ #
+ # Copyright (C) 2021  Fabrice Gallet <tircown@gmail.com>
+-# Copyright (C) 2023-2025  Dmitry Butyugin <dmbutyugin@google.com>
++# Copyright (C) 2023  Dmitry Butyugin <dmbutyugin@google.com>
+ #
+ # This file may be distributed under the terms of the GNU GPLv3 license.
+-import collections, logging, math
++import math
+ import chelper
+ 
+ INACTIVE = 'INACTIVE'
+@@ -13,36 +13,19 @@
+ MIRROR = 'MIRROR'
+ 
+ class DualCarriages:
+-    VALID_MODES = [INACTIVE, PRIMARY, COPY, MIRROR]
+-    def __init__(self, printer, primary_rails, dual_rails, axes, safe_dist):
+-        self.printer = printer
+-        self._init_steppers(primary_rails + dual_rails)
+-        safe_dist = list(safe_dist)
+-        for i, dc in enumerate(dual_rails):
+-            if dc is None or safe_dist[i] is not None:
+-                continue
+-            pc = primary_rails[i]
+-            safe_dist[i] = min(abs(pc.position_min - dc.position_min),
+-                               abs(pc.position_max - dc.position_max))
+-        activated = [False] * 3
+-        self.primary_rails = []
+-        for i, c in enumerate(primary_rails):
+-            activate, activated[axes[i]] = not activated[axes[i]], True
+-            dc_rail = DualCarriagesRail(
+-                    printer, c, dual_rails[i], axes[i], safe_dist[i],
+-                    active=activate)
+-            self.primary_rails.append(dc_rail)
+-        self.dual_rails = [
+-                DualCarriagesRail(printer, c, primary_rails[i],
+-                                  axes[i], safe_dist[i], active=False)
+-                if c is not None else None
+-                for i, c in enumerate(dual_rails)]
+-        self.dc_rails = collections.OrderedDict(
+-                [(c.rail.get_name(short=True), c)
+-                 for c in self.primary_rails + self.dual_rails
+-                 if c is not None])
++    VALID_MODES = [PRIMARY, COPY, MIRROR]
++    def __init__(self, dc_config, rail_0, rail_1, axis):
++        self.printer = dc_config.get_printer()
++        self.axis = axis
++        self.dc = (rail_0, rail_1)
+         self.saved_states = {}
+-        self.axes = sorted(set(axes))
++        safe_dist = dc_config.getfloat('safe_distance', None, minval=0.)
++        if safe_dist is None:
++            dc0_rail = rail_0.get_rail()
++            dc1_rail = rail_1.get_rail()
++            safe_dist = min(abs(dc0_rail.position_min - dc1_rail.position_min),
++                            abs(dc0_rail.position_max - dc1_rail.position_max))
++        self.safe_dist = safe_dist
+         self.printer.add_object('dual_carriage', self)
+         self.printer.register_event_handler("klippy:ready", self._handle_ready)
+         gcode = self.printer.lookup_object('gcode')
+@@ -57,141 +40,85 @@
+                    'RESTORE_DUAL_CARRIAGE_STATE',
+                    self.cmd_RESTORE_DUAL_CARRIAGE_STATE,
+                    desc=self.cmd_RESTORE_DUAL_CARRIAGE_STATE_help)
+-    def _init_steppers(self, rails):
+-        ffi_main, ffi_lib = chelper.get_ffi()
+-        self.dc_stepper_kinematics = []
+-        self.orig_stepper_kinematics = []
+-        steppers = set()
+-        for rail in rails:
+-            if rail is None:
+-                continue
+-            c_steppers = rail.get_steppers()
+-            if not c_steppers:
+-                raise self.printer.config_error(
+-                        "At least one stepper must be "
+-                        "associated with carriage: %s" % rail.get_name())
+-            steppers.update(c_steppers)
+-        for s in steppers:
+-            sk = ffi_main.gc(ffi_lib.dual_carriage_alloc(), ffi_lib.free)
+-            orig_sk = s.get_stepper_kinematics()
+-            ffi_lib.dual_carriage_set_sk(sk, orig_sk)
+-            self.dc_stepper_kinematics.append(sk)
+-            self.orig_stepper_kinematics.append(orig_sk)
+-            s.set_stepper_kinematics(sk)
+-    def get_axes(self):
+-        return self.axes
+-    def get_primary_rail(self, axis):
+-        for dc_rail in self.dc_rails.values():
+-            if dc_rail.mode == PRIMARY and dc_rail.axis == axis:
+-                return dc_rail.rail
++    def get_rails(self):
++        return self.dc
++    def get_primary_rail(self):
++        for rail in self.dc:
++            if rail.mode == PRIMARY:
++                return rail
+         return None
+-    def get_dc_rail_wrapper(self, rail):
+-        for dc_rail in self.dc_rails.values():
+-            if dc_rail.rail == rail:
+-                return dc_rail
+-        return None
+-    def get_transform(self, rail):
+-        dc_rail = self.get_dc_rail_wrapper(rail)
+-        if dc_rail is not None:
+-            return (dc_rail.scale, dc_rail.offset)
+-        return (0., 0.)
+-    def is_active(self, rail):
+-        dc_rail = self.get_dc_rail_wrapper(rail)
+-        return dc_rail.is_active() if dc_rail is not None else False
+-    def toggle_active_dc_rail(self, target_dc):
++    def toggle_active_dc_rail(self, index):
+         toolhead = self.printer.lookup_object('toolhead')
+         toolhead.flush_step_generation()
+         pos = toolhead.get_position()
+         kin = toolhead.get_kinematics()
+-        axis = target_dc.axis
+-        for dc in self.dc_rails.values():
+-            if dc != target_dc and dc.axis == axis and dc.is_active():
+-                dc.inactivate(pos)
++        for i, dc in enumerate(self.dc):
++            dc_rail = dc.get_rail()
++            if i != index:
++                if dc.is_active():
++                    dc.inactivate(pos)
++        target_dc = self.dc[index]
+         if target_dc.mode != PRIMARY:
+-            newpos = pos[:axis] + [target_dc.get_axis_position(pos)] \
+-                        + pos[axis+1:]
++            newpos = pos[:self.axis] + [target_dc.get_axis_position(pos)] \
++                        + pos[self.axis+1:]
+             target_dc.activate(PRIMARY, newpos, old_position=pos)
+             toolhead.set_position(newpos)
+-        kin.update_limits(axis, target_dc.rail.get_range())
+-    def home(self, homing_state, axis):
++        kin.update_limits(self.axis, target_dc.get_rail().get_range())
++    def home(self, homing_state):
+         kin = self.printer.lookup_object('toolhead').get_kinematics()
+-        homing_rails = [r for r in self.primary_rails if r.axis == axis]
+-        for dc_rail in homing_rails:
+-            dcs = [dc for dc in self.dc_rails.values()
+-                   if dc_rail.rail in [dc.rail, dc.dual_rail]]
+-            if len(dcs) > 1 and (self.get_dc_order(dcs[0], dcs[1]) > 0) != \
+-                    dcs[0].rail.get_homing_info().positive_dir:
+-                # The second carriage must home first, because the carriages
+-                # home in the same direction and the first carriage homes on
+-                # the second one, so reversing the oder
+-                dcs.reverse()
+-            for dc in dcs:
+-                self.toggle_active_dc_rail(dc)
+-                kin.home_axis(homing_state, dc.axis, dc.rail)
+-        # Restore the first rail as primary after all homed
+-        self.activate_dc_mode(homing_rails[0], PRIMARY)
++        enumerated_dcs = list(enumerate(self.dc))
++        if (self.get_dc_order(0, 1) > 0) != \
++                self.dc[0].get_rail().get_homing_info().positive_dir:
++            # The second carriage must home first, because the carriages home in
++            # the same direction and the first carriage homes on the second one
++            enumerated_dcs.reverse()
++        for i, dc_rail in enumerated_dcs:
++            self.toggle_active_dc_rail(i)
++            kin.home_axis(homing_state, self.axis, dc_rail.get_rail())
++        # Restore the original rails ordering
++        self.toggle_active_dc_rail(0)
+     def get_status(self, eventtime=None):
+-        status = {'carriages' : {dc.get_name() : dc.mode
+-                                 for dc in self.dc_rails.values()}}
+-        if len(self.dc_rails) == 2:
+-            status.update({('carriage_%d' % (i,)) : dc.mode
+-                           for i, dc in enumerate(self.dc_rails.values())})
+-        return status
+-    def get_kin_range(self, toolhead, axis):
++        return {('carriage_%d' % (i,)) : dc.mode
++                for (i, dc) in enumerate(self.dc)}
++    def get_kin_range(self, toolhead, mode):
+         pos = toolhead.get_position()
+-        axis_pos = pos[axis]
+-        range_min, range_max = -1e10, 1e10
+-        for carriage in self.dc_rails.values():
+-            if carriage.axis != axis:
+-                continue
+-            dcs = [carriage] + [dc for dc in self.dc_rails.values()
+-                                if carriage.rail is dc.dual_rail]
+-            axes_pos = [dc.get_axis_position(pos) for dc in dcs]
+-            # Check how dcs[0] affects the motion range
+-            if not dcs[0].is_active():
+-                continue
+-            elif dcs[0].mode == PRIMARY:
+-                range_min = max(range_min, dcs[0].rail.position_min)
+-                range_max = min(range_max, dcs[0].rail.position_max)
+-            elif dcs[0].mode == COPY:
+-                range_min = max(range_min, axis_pos
+-                                + dcs[0].rail.position_min - axes_pos[0])
+-                range_max = min(range_max, axis_pos
+-                                + dcs[0].rail.position_max - axes_pos[0])
+-            elif dcs[0].mode == MIRROR:
+-                range_min = max(range_min, axis_pos
+-                                + axes_pos[0] - dcs[0].rail.position_max)
+-                range_max = min(range_max, axis_pos
+-                                + axes_pos[0] - dcs[0].rail.position_min)
+-            safe_dist = dcs[0].safe_dist
+-            if not safe_dist or len(dcs) == 1:
+-                continue
+-            if dcs[0].mode == dcs[1].mode or \
+-                    set((dcs[0].mode, dcs[1].mode)) == set((PRIMARY, COPY)):
+-                # dcs[0] and dcs[1] carriages move in the same direction and
+-                # cannot collide with each other
+-                continue
++        axes_pos = [dc.get_axis_position(pos) for dc in self.dc]
++        dc0_rail = self.dc[0].get_rail()
++        dc1_rail = self.dc[1].get_rail()
++        if mode != PRIMARY or self.dc[0].is_active():
++            range_min = dc0_rail.position_min
++            range_max = dc0_rail.position_max
++        else:
++            range_min = dc1_rail.position_min
++            range_max = dc1_rail.position_max
++        safe_dist = self.safe_dist
++        if not safe_dist:
++            return (range_min, range_max)
+ 
+-            # Compute how much dcs[0] can move towards dcs[1]
+-            dcs_dist = axes_pos[1] - axes_pos[0]
+-            if self.get_dc_order(dcs[0], dcs[1]) > 0:
+-                safe_move_dist = dcs_dist + safe_dist
++        if mode == COPY:
++            range_min = max(range_min,
++                            axes_pos[0] - axes_pos[1] + dc1_rail.position_min)
++            range_max = min(range_max,
++                            axes_pos[0] - axes_pos[1] + dc1_rail.position_max)
++        elif mode == MIRROR:
++            if self.get_dc_order(0, 1) > 0:
++                range_min = max(range_min,
++                                0.5 * (sum(axes_pos) + safe_dist))
++                range_max = min(range_max,
++                                sum(axes_pos) - dc1_rail.position_min)
+             else:
+-                safe_move_dist = dcs_dist - safe_dist
+-            if dcs[1].is_active():
+-                safe_move_dist *= 0.5
+-
+-            if dcs[0].mode in (PRIMARY, COPY):
+-                if self.get_dc_order(dcs[0], dcs[1]) > 0:
+-                    range_min = max(range_min, axis_pos + safe_move_dist)
+-                else:
+-                    range_max = min(range_max, axis_pos + safe_move_dist)
+-            else:  # dcs[0].mode == MIRROR
+-                if self.get_dc_order(dcs[0], dcs[1]) > 0:
+-                    range_max = min(range_max, axis_pos - safe_move_dist)
+-                else:
+-                    range_min = max(range_min, axis_pos - safe_move_dist)
+-
++                range_max = min(range_max,
++                                0.5 * (sum(axes_pos) - safe_dist))
++                range_min = max(range_min,
++                                sum(axes_pos) - dc1_rail.position_max)
++        else:
++            # mode == PRIMARY
++            active_idx = 1 if self.dc[1].is_active() else 0
++            inactive_idx = 1 - active_idx
++            if self.get_dc_order(active_idx, inactive_idx) > 0:
++                range_min = max(range_min, axes_pos[inactive_idx] + safe_dist)
++            else:
++                range_max = min(range_max, axes_pos[inactive_idx] - safe_dist)
+         if range_min > range_max:
+             # During multi-MCU homing it is possible that the carriage
+             # position will end up below position_min or above position_max
+@@ -204,14 +131,14 @@
+             # which actually permits carriage motion.
+             return (range_min, range_min)
+         return (range_min, range_max)
+-    def get_dc_order(self, first_dc, second_dc):
+-        if first_dc == second_dc:
++    def get_dc_order(self, first, second):
++        if first == second:
+             return 0
+         # Check the relative order of the first and second carriages and
+         # return -1 if the first carriage position is always smaller
+         # than the second one and 1 otherwise
+-        first_rail = first_dc.rail
+-        second_rail = second_dc.rail
++        first_rail = self.dc[first].get_rail()
++        second_rail = self.dc[second].get_rail()
+         first_homing_info = first_rail.get_homing_info()
+         second_homing_info = second_rail.get_homing_info()
+         if first_homing_info.positive_dir != second_homing_info.positive_dir:
+@@ -221,75 +148,50 @@
+         if first_rail.position_endstop > second_rail.position_endstop:
+             return 1
+         return -1
+-    def activate_dc_mode(self, dc, mode):
++    def activate_dc_mode(self, index, mode):
+         toolhead = self.printer.lookup_object('toolhead')
+         toolhead.flush_step_generation()
+         kin = toolhead.get_kinematics()
+-        axis = dc.axis
+         if mode == INACTIVE:
+-            dc.inactivate(toolhead.get_position())
++            self.dc[index].inactivate(toolhead.get_position())
+         elif mode == PRIMARY:
+-            self.toggle_active_dc_rail(dc)
++            self.toggle_active_dc_rail(index)
+         else:
+-            dc.activate(mode, toolhead.get_position())
+-        kin.update_limits(axis, self.get_kin_range(toolhead, axis))
++            self.toggle_active_dc_rail(0)
++            self.dc[index].activate(mode, toolhead.get_position())
++        kin.update_limits(self.axis, self.get_kin_range(toolhead, mode))
+     def _handle_ready(self):
+-        for dc_rail in self.dc_rails.values():
+-            dc_rail.apply_transform()
++        # Apply the transform later during Klipper initialization to make sure
++        # that input shaping can pick up the correct stepper kinematic flags.
++        for dc in self.dc:
++            dc.apply_transform()
+     cmd_SET_DUAL_CARRIAGE_help = "Configure the dual carriages mode"
+     def cmd_SET_DUAL_CARRIAGE(self, gcmd):
+-        carriage_str = gcmd.get('CARRIAGE', None)
+-        if carriage_str is None:
+-            raise gcmd.error('CARRIAGE must be specified')
+-        if carriage_str in self.dc_rails:
+-            dc_rail = self.dc_rails[carriage_str]
+-        else:
+-            dc_rail = None
+-            if len(self.dc_rails) == 2:
+-                try:
+-                    index = int(carriage_str.strip())
+-                    if index < 0 or index > 1:
+-                        raise gcmd.error('Invalid CARRIAGE=%d index' % index)
+-                    dc_rail = (self.dual_rails if index
+-                               else self.primary_rails)[0]
+-                except ValueError:
+-                    pass
+-            if dc_rail is None:
+-                raise gcmd.error('Invalid CARRIAGE=%s specified' % carriage_str)
++        index = gcmd.get_int('CARRIAGE', minval=0, maxval=1)
+         mode = gcmd.get('MODE', PRIMARY).upper()
+         if mode not in self.VALID_MODES:
+             raise gcmd.error("Invalid mode=%s specified" % (mode,))
+         if mode in [COPY, MIRROR]:
+-            if self.get_primary_rail(dc_rail.axis) in [None, dc_rail.rail]:
++            if index == 0:
+                 raise gcmd.error(
+-                        "Must activate another carriage as PRIMARY first")
++                        "Mode=%s is not supported for carriage=0" % (mode,))
+             curtime = self.printer.get_reactor().monotonic()
+             kin = self.printer.lookup_object('toolhead').get_kinematics()
+-            axis = 'xyz'[dc_rail.axis]
++            axis = 'xyz'[self.axis]
+             if axis not in kin.get_status(curtime)['homed_axes']:
+                 raise gcmd.error(
+                         "Axis %s must be homed prior to enabling mode=%s" %
+-                        (axis.upper(), mode))
+-        if mode == INACTIVE:
+-            active_dcs = [dc for dc in self.dc_rails.values()
+-                          if dc.is_active() and dc.axis == dc_rail.axis]
+-            if active_dcs == [dc_rail]:
+-                raise gcmd.error(
+-                        "Cannot deactivate the only active carriage for axis %s"
+-                        % 'XYZ'[dc_rail.axis])
+-        self.activate_dc_mode(dc_rail, mode)
++                        (axis, mode))
++        self.activate_dc_mode(index, mode)
+     cmd_SAVE_DUAL_CARRIAGE_STATE_help = \
+             "Save dual carriages modes and positions"
+     def cmd_SAVE_DUAL_CARRIAGE_STATE(self, gcmd):
+         state_name = gcmd.get('NAME', 'default')
+-        self.saved_states[state_name] = self.save_dual_carriage_state()
+-    def save_dual_carriage_state(self):
+         pos = self.printer.lookup_object('toolhead').get_position()
+-        return {'carriage_modes': {dc.get_name() : dc.mode
+-                                   for dc in self.dc_rails.values()},
+-                'carriage_positions': {dc.get_name() : dc.get_axis_position(pos)
+-                                       for dc in self.dc_rails.values()},
+-                'toolhead_position': tuple(pos)}
++        self.saved_states[state_name] = {
++            'carriage_modes': [dc.mode for dc in self.dc],
++            'axes_positions': [dc.get_axis_position(pos) for dc in self.dc],
++        }
+     cmd_RESTORE_DUAL_CARRIAGE_STATE_help = \
+             "Restore dual carriages modes and positions"
+     def cmd_RESTORE_DUAL_CARRIAGE_STATE(self, gcmd):
+@@ -298,89 +200,52 @@
+         if saved_state is None:
+             raise gcmd.error("Unknown DUAL_CARRIAGE state: %s" % (state_name,))
+         move_speed = gcmd.get_float('MOVE_SPEED', 0., above=0.)
+-        move = gcmd.get_int('MOVE', 1)
+-        self.restore_dual_carriage_state(saved_state, move, move_speed)
+-    def restore_dual_carriage_state(self, saved_state, move, move_speed=0.):
+         toolhead = self.printer.lookup_object('toolhead')
+         toolhead.flush_step_generation()
+-        move_pos = list(toolhead.get_position())
+-        dcs = list(self.dc_rails.values())
+-        if move:
+-            homing_speed = 99999999.
+-            cur_pos = []
+-            carriage_positions = saved_state['carriage_positions']
+-            for dc in dcs:
+-                self.toggle_active_dc_rail(dc)
+-                homing_speed = min(homing_speed, dc.rail.homing_speed)
+-                cur_pos.append(toolhead.get_position())
+-            dl = [carriage_positions[dc.get_name()] - cur_pos[i][dc.axis]
+-                  for i, dc in enumerate(dcs)]
+-            for axis in self.axes:
+-                dc_ind = [i for i, dc in enumerate(dcs) if dc.axis == axis]
+-                abs_dl = [abs(dl[i]) for i in dc_ind]
+-                primary_ind = dc_ind[abs_dl.index(max(abs_dl))]
+-                primary_dc = dcs[primary_ind]
+-                self.toggle_active_dc_rail(primary_dc)
+-                move_pos[axis] = carriage_positions[primary_dc.get_name()]
+-                for secondary_ind in dc_ind:
+-                    if secondary_ind == primary_ind:
+-                        continue
+-                    if min(abs(dl[primary_ind]),
+-                           abs(dl[secondary_ind])) < .000000001:
+-                        continue
+-                    if dl[primary_ind] * dl[secondary_ind] > 0:
+-                        dc_mode = COPY
+-                    else:
+-                        dc_mode = MIRROR
+-                    dcs[secondary_ind].activate(dc_mode, cur_pos[primary_ind])
+-                    dcs[secondary_ind].override_axis_scaling(
+-                            abs(dl[secondary_ind] / dl[primary_ind]),
+-                            cur_pos[primary_ind])
+-            toolhead.manual_move(move_pos, move_speed or homing_speed)
+-            toolhead.flush_step_generation()
+-        # Inactivate all carriages in order to restore scaling coefficients
+-        # (if a move was requested) and correctly compute kinematics limits
+-        for dc in dcs:
+-            dc.inactivate(move_pos)
+-        # Restore toolhead position in case some axes have no primary carriages
+-        for axis in self.axes:
+-            move_pos[axis] = saved_state['toolhead_position'][axis]
+-        toolhead.set_position(move_pos)
+-        saved_modes = saved_state['carriage_modes']
+-        saved_primary_dcs = [dc for dc in self.dc_rails.values()
+-                             if saved_modes[dc.get_name()] == PRIMARY]
+-        # First activate all primary carriages
+-        for dc in saved_primary_dcs:
+-            self.activate_dc_mode(dc, PRIMARY)
+-        # Then set the modes the remaining carriages
+-        for dc in self.dc_rails.values():
+-            if dc not in saved_primary_dcs:
+-                self.activate_dc_mode(dc, saved_modes[dc.get_name()])
++        pos = toolhead.get_position()
++        if gcmd.get_int('MOVE', 1):
++            for i, dc in enumerate(self.dc):
++                self.toggle_active_dc_rail(i)
++                saved_pos = saved_state['axes_positions'][i]
++                toolhead.manual_move(
++                        pos[:self.axis] + [saved_pos] + pos[self.axis+1:],
++                        move_speed or dc.get_rail().homing_speed)
++        for i, dc in enumerate(self.dc):
++            saved_mode = saved_state['carriage_modes'][i]
++            self.activate_dc_mode(i, saved_mode)
+ 
+ class DualCarriagesRail:
+     ENC_AXES = [b'x', b'y']
+-    def __init__(self, printer, rail, dual_rail, axis, safe_dist, active):
+-        self.printer = printer
++    def __init__(self, rail, axis, active):
+         self.rail = rail
+-        self.dual_rail = dual_rail
+-        self.sks = [s.get_stepper_kinematics() for s in rail.get_steppers()]
+         self.axis = axis
+-        self.safe_dist = safe_dist
+         self.mode = (INACTIVE, PRIMARY)[active]
+         self.offset = 0.
+         self.scale = 1. if active else 0.
+-    def get_name(self):
+-        return self.rail.get_name()
++        ffi_main, ffi_lib = chelper.get_ffi()
++        self.dc_stepper_kinematics = []
++        self.orig_stepper_kinematics = []
++        for s in rail.get_steppers():
++            sk = ffi_main.gc(ffi_lib.dual_carriage_alloc(), ffi_lib.free)
++            orig_sk = s.get_stepper_kinematics()
++            ffi_lib.dual_carriage_set_sk(sk, orig_sk)
++            # Set the default transform for the other axis
++            ffi_lib.dual_carriage_set_transform(
++                    sk, self.ENC_AXES[1 - axis], 1., 0.)
++            self.dc_stepper_kinematics.append(sk)
++            self.orig_stepper_kinematics.append(orig_sk)
++            s.set_stepper_kinematics(sk)
++    def get_rail(self):
++        return self.rail
+     def is_active(self):
+         return self.mode != INACTIVE
+     def get_axis_position(self, position):
+         return position[self.axis] * self.scale + self.offset
+     def apply_transform(self):
+         ffi_main, ffi_lib = chelper.get_ffi()
+-        for sk in self.sks:
++        for sk in self.dc_stepper_kinematics:
+             ffi_lib.dual_carriage_set_transform(
+                     sk, self.ENC_AXES[self.axis], self.scale, self.offset)
+-        self.printer.send_event('dual_carriage:update_kinematics')
+     def activate(self, mode, position, old_position=None):
+         old_axis_position = self.get_axis_position(old_position or position)
+         self.scale = -1. if mode == MIRROR else 1.
+@@ -392,8 +257,3 @@
+         self.scale = 0.
+         self.apply_transform()
+         self.mode = INACTIVE
+-    def override_axis_scaling(self, new_scale, position):
+-        old_axis_position = self.get_axis_position(position)
+-        self.scale = math.copysign(new_scale, self.scale)
+-        self.offset = old_axis_position - position[self.axis] * self.scale
+-        self.apply_transform()
+Only in /tmp/klipper-upstream/klippy/kinematics/: kinematic_stepper.py
+diff -ru '--exclude=*.pyc' /tmp/klipper-upstream/klippy/kinematics/none.py /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/none.py
+--- /tmp/klipper-upstream/klippy/kinematics/none.py	2026-03-30 17:21:21.962460385 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/none.py	2026-03-30 17:20:31.219336509 +0000
+@@ -6,15 +6,13 @@
+ 
+ class NoneKinematics:
+     def __init__(self, toolhead, config):
+-        self.axes_minmax = toolhead.Coord((0., 0., 0.))
++        self.axes_minmax = toolhead.Coord(0., 0., 0., 0.)
+     def get_steppers(self):
+         return []
+     def calc_position(self, stepper_positions):
+         return [0, 0, 0]
+     def set_position(self, newpos, homing_axes):
+         pass
+-    def clear_homing_state(self, clear_axes):
+-        pass
+     def home(self, homing_state):
+         pass
+     def check_move(self, move):
+diff -ru '--exclude=*.pyc' /tmp/klipper-upstream/klippy/kinematics/polar.py /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/polar.py
+--- /tmp/klipper-upstream/klippy/kinematics/polar.py	2026-03-30 17:21:21.962460385 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/polar.py	2026-03-30 17:20:31.219336509 +0000
+@@ -11,7 +11,7 @@
+         # Setup axis steppers
+         stepper_bed = stepper.PrinterStepper(config.getsection('stepper_bed'),
+                                              units_in_radians=True)
+-        rail_arm = stepper.LookupRail(config.getsection('stepper_arm'))
++        rail_arm = stepper.PrinterRail(config.getsection('stepper_arm'))
+         rail_z = stepper.LookupMultiRail(config.getsection('stepper_z'))
+         stepper_bed.setup_itersolve('polar_stepper_alloc', b'a')
+         rail_arm.setup_itersolve('polar_stepper_alloc', b'r')
+@@ -21,6 +21,9 @@
+                                           for s in r.get_steppers() ]
+         for s in self.get_steppers():
+             s.set_trapq(toolhead.get_trapq())
++            toolhead.register_step_generator(s.generate_steps)
++        config.get_printer().register_event_handler("stepper_enable:motor_off",
++                                                    self._motor_off)
+         # Setup boundary checks
+         max_velocity, max_accel = toolhead.get_max_velocity()
+         self.max_z_velocity = config.getfloat(
+@@ -31,8 +34,8 @@
+         self.limit_xy2 = -1.
+         max_xy = self.rails[0].get_range()[1]
+         min_z, max_z = self.rails[1].get_range()
+-        self.axes_min = toolhead.Coord((-max_xy, -max_xy, min_z))
+-        self.axes_max = toolhead.Coord((max_xy, max_xy, max_z))
++        self.axes_min = toolhead.Coord(-max_xy, -max_xy, min_z, 0.)
++        self.axes_max = toolhead.Coord(max_xy, max_xy, max_z, 0.)
+     def get_steppers(self):
+         return list(self.steppers)
+     def calc_position(self, stepper_positions):
+@@ -44,16 +47,13 @@
+     def set_position(self, newpos, homing_axes):
+         for s in self.steppers:
+             s.set_position(newpos)
+-        if "z" in homing_axes:
++        if 2 in homing_axes:
+             self.limit_z = self.rails[1].get_range()
+-        if "x" in homing_axes and "y" in homing_axes:
++        if 0 in homing_axes and 1 in homing_axes:
+             self.limit_xy2 = self.rails[0].get_range()[1]**2
+-    def clear_homing_state(self, clear_axes):
+-        if "x" in clear_axes or "y" in clear_axes:
+-            # X and Y cannot be cleared separately
+-            self.limit_xy2 = -1.
+-        if "z" in clear_axes:
+-            self.limit_z = (1.0, -1.0)
++    def note_z_not_homed(self):
++        # Helper for Safe Z Home
++        self.limit_z = (1.0, -1.0)
+     def _home_axis(self, homing_state, axis, rail):
+         # Determine movement
+         position_min, position_max = rail.get_range()
+@@ -85,6 +85,9 @@
+             self._home_axis(homing_state, 0, self.rails[0])
+         if home_z:
+             self._home_axis(homing_state, 2, self.rails[1])
++    def _motor_off(self, print_time):
++        self.limit_z = (1.0, -1.0)
++        self.limit_xy2 = -1.
+     def check_move(self, move):
+         end_pos = move.end_pos
+         xy2 = end_pos[0]**2 + end_pos[1]**2
+diff -ru '--exclude=*.pyc' /tmp/klipper-upstream/klippy/kinematics/rotary_delta.py /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/rotary_delta.py
+--- /tmp/klipper-upstream/klippy/kinematics/rotary_delta.py	2026-03-30 17:21:21.962460385 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/rotary_delta.py	2026-03-30 17:20:31.219336509 +0000
+@@ -10,17 +10,19 @@
+     def __init__(self, toolhead, config):
+         # Setup tower rails
+         stepper_configs = [config.getsection('stepper_' + a) for a in 'abc']
+-        rail_a = stepper.LookupRail(
++        rail_a = stepper.PrinterRail(
+             stepper_configs[0], need_position_minmax=False,
+             units_in_radians=True)
+         a_endstop = rail_a.get_homing_info().position_endstop
+-        rail_b = stepper.LookupRail(
++        rail_b = stepper.PrinterRail(
+             stepper_configs[1], need_position_minmax=False,
+             default_position_endstop=a_endstop, units_in_radians=True)
+-        rail_c = stepper.LookupRail(
++        rail_c = stepper.PrinterRail(
+             stepper_configs[2], need_position_minmax=False,
+             default_position_endstop=a_endstop, units_in_radians=True)
+         self.rails = [rail_a, rail_b, rail_c]
++        config.get_printer().register_event_handler("stepper_enable:motor_off",
++                                                    self._motor_off)
+         # Read config
+         max_velocity, max_accel = toolhead.get_max_velocity()
+         self.max_z_velocity = config.getfloat('max_z_velocity', max_velocity,
+@@ -52,6 +54,7 @@
+                               math.radians(a), ua, la)
+         for s in self.get_steppers():
+             s.set_trapq(toolhead.get_trapq())
++            toolhead.register_step_generator(s.generate_steps)
+         # Setup boundary checks
+         self.need_home = True
+         self.limit_xy2 = -1.
+@@ -71,9 +74,9 @@
+             "Delta max build height %.2fmm (radius tapered above %.2fmm)"
+             % (self.max_z, self.limit_z))
+         max_xy = math.sqrt(self.max_xy2)
+-        self.axes_min = toolhead.Coord((-max_xy, -max_xy, self.min_z))
+-        self.axes_max = toolhead.Coord((max_xy, max_xy, self.max_z))
+-        self.set_position([0., 0., 0.], "")
++        self.axes_min = toolhead.Coord(-max_xy, -max_xy, self.min_z, 0.)
++        self.axes_max = toolhead.Coord(max_xy, max_xy, self.max_z, 0.)
++        self.set_position([0., 0., 0.], ())
+     def get_steppers(self):
+         return [s for rail in self.rails for s in rail.get_steppers()]
+     def calc_position(self, stepper_positions):
+@@ -83,13 +86,8 @@
+         for rail in self.rails:
+             rail.set_position(newpos)
+         self.limit_xy2 = -1.
+-        if homing_axes == "xyz":
++        if tuple(homing_axes) == (0, 1, 2):
+             self.need_home = False
+-    def clear_homing_state(self, clear_axes):
+-        # Clearing homing state for each axis individually is not implemented
+-        if clear_axes:
+-            self.limit_xy2 = -1
+-            self.need_home = True
+     def home(self, homing_state):
+         # All axes are homed simultaneously
+         homing_state.set_axes([0, 1, 2])
+@@ -98,6 +96,9 @@
+         #forcepos[2] = self.calibration.actuator_to_cartesian(min_angles)[2]
+         forcepos[2] = -1.
+         homing_state.home_rails(self.rails, forcepos, self.home_position)
++    def _motor_off(self, print_time):
++        self.limit_xy2 = -1.
++        self.need_home = True
+     def check_move(self, move):
+         end_pos = move.end_pos
+         end_xy2 = end_pos[0]**2 + end_pos[1]**2
+diff -ru '--exclude=*.pyc' /tmp/klipper-upstream/klippy/kinematics/winch.py /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/winch.py
+--- /tmp/klipper-upstream/klippy/kinematics/winch.py	2026-03-30 17:21:21.962460385 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/klippy/kinematics/winch.py	2026-03-30 17:20:31.219336509 +0000
+@@ -21,11 +21,12 @@
+             self.anchors.append(a)
+             s.setup_itersolve('winch_stepper_alloc', *a)
+             s.set_trapq(toolhead.get_trapq())
++            toolhead.register_step_generator(s.generate_steps)
+         # Setup boundary checks
+         acoords = list(zip(*self.anchors))
+-        self.axes_min = toolhead.Coord([min(a) for a in acoords])
+-        self.axes_max = toolhead.Coord([max(a) for a in acoords])
+-        self.set_position([0., 0., 0.], "")
++        self.axes_min = toolhead.Coord(*[min(a) for a in acoords], e=0.)
++        self.axes_max = toolhead.Coord(*[max(a) for a in acoords], e=0.)
++        self.set_position([0., 0., 0.], ())
+     def get_steppers(self):
+         return list(self.steppers)
+     def calc_position(self, stepper_positions):
+@@ -35,9 +36,6 @@
+     def set_position(self, newpos, homing_axes):
+         for s in self.steppers:
+             s.set_position(newpos)
+-    def clear_homing_state(self, clear_axes):
+-        # XXX - homing not implemented
+-        pass
+     def home(self, homing_state):
+         # XXX - homing not implemented
+         homing_state.set_axes([0, 1, 2])

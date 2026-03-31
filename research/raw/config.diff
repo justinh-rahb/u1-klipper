@@ -1,0 +1,563 @@
+Only in /tmp/klipper-upstream/config/: example-generic-caretesian.cfg
+diff -ru /tmp/klipper-upstream/config/generic-bigtreetech-manta-e3ez.cfg /home/runner/work/u1-klipper/u1-klipper/config/generic-bigtreetech-manta-e3ez.cfg
+--- /tmp/klipper-upstream/config/generic-bigtreetech-manta-e3ez.cfg	2026-03-30 17:21:21.919174644 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/config/generic-bigtreetech-manta-e3ez.cfg	2026-03-30 17:20:31.174690542 +0000
+@@ -133,34 +133,44 @@
+ 
+ #[tmc2130 stepper_x]
+ #cs_pin: PB8
+-#spi_bus: spi3_PC11_PC12_PC10
++#spi_software_miso_pin: PC11
++#spi_software_mosi_pin: PC12
++#spi_software_sclk_pin: PC10
+ ##diag1_pin: PF3
+ #run_current: 0.800
+ #stealthchop_threshold: 999999
+ 
+ #[tmc2130 stepper_y]
+ #cs_pin: PC9
+-#spi_bus: spi3_PC11_PC12_PC10
++#spi_software_miso_pin: PC11
++#spi_software_mosi_pin: PC12
++#spi_software_sclk_pin: PC10
+ ##diag1_pin: PF4
+ #run_current: 0.800
+ #stealthchop_threshold: 999999
+ 
+ #[tmc2130 stepper_z]
+ #cs_pin: PD0
+-#spi_bus: spi3_PC11_PC12_PC10
++#spi_software_miso_pin: PC11
++#spi_software_mosi_pin: PC12
++#spi_software_sclk_pin: PC10
+ ##diag1_pin: PF5
+ #run_current: 0.650
+ #stealthchop_threshold: 999999
+ 
+ #[tmc2130 extruder]
+ #cs_pin: PD1
+-#spi_bus: spi3_PC11_PC12_PC10
++#spi_software_miso_pin: PC11
++#spi_software_mosi_pin: PC12
++#spi_software_sclk_pin: PC10
+ #run_current: 0.800
+ #stealthchop_threshold: 999999
+ 
+ #[tmc2130 extruder1]
+ #cs_pin: PB5
+-#spi_bus: spi3_PC11_PC12_PC10
++#spi_software_miso_pin: PC11
++#spi_software_mosi_pin: PC12
++#spi_software_sclk_pin: PC10
+ #run_current: 0.800
+ #stealthchop_threshold: 999999
+ 
+@@ -185,4 +195,6 @@
+ 
+ #[adxl345]
+ #cs_pin: PC15
+-#spi_bus: spi3_PC11_PC12_PC10
++#spi_software_miso_pin: PC11
++#spi_software_mosi_pin: PC12
++#spi_software_sclk_pin: PC10
+diff -ru /tmp/klipper-upstream/config/generic-bigtreetech-manta-m8p-v1.0.cfg /home/runner/work/u1-klipper/u1-klipper/config/generic-bigtreetech-manta-m8p-v1.0.cfg
+--- /tmp/klipper-upstream/config/generic-bigtreetech-manta-m8p-v1.0.cfg	2026-03-30 17:21:21.919174644 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/config/generic-bigtreetech-manta-m8p-v1.0.cfg	2026-03-30 17:20:31.174690542 +0000
+@@ -39,7 +39,7 @@
+ # Motor4
+ # The M8P only has 4 heater outputs which leaves an extra stepper
+ # This can be used for a second Z stepper, dual_carriage, extruder co-stepper,
+-# or other accessory such as an MMU
++# or other accesory such as an MMU
+ #[stepper_]
+ #step_pin: PD3
+ #dir_pin: PD2
+diff -ru /tmp/klipper-upstream/config/generic-bigtreetech-manta-m8p-v1.1.cfg /home/runner/work/u1-klipper/u1-klipper/config/generic-bigtreetech-manta-m8p-v1.1.cfg
+--- /tmp/klipper-upstream/config/generic-bigtreetech-manta-m8p-v1.1.cfg	2026-03-30 17:21:21.919174644 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/config/generic-bigtreetech-manta-m8p-v1.1.cfg	2026-03-30 17:20:31.175336650 +0000
+@@ -40,7 +40,7 @@
+ # Motor4
+ # The M8P only has 4 heater outputs which leaves an extra stepper
+ # This can be used for a second Z stepper, dual_carriage, extruder co-stepper,
+-# or other accessory such as an MMU
++# or other accesory such as an MMU
+ #[stepper_]
+ #step_pin: PD3
+ #dir_pin: PD2
+diff -ru /tmp/klipper-upstream/config/generic-bigtreetech-octopus-max-ez.cfg /home/runner/work/u1-klipper/u1-klipper/config/generic-bigtreetech-octopus-max-ez.cfg
+--- /tmp/klipper-upstream/config/generic-bigtreetech-octopus-max-ez.cfg	2026-03-30 17:21:21.919174644 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/config/generic-bigtreetech-octopus-max-ez.cfg	2026-03-30 17:20:31.175336650 +0000
+@@ -43,7 +43,7 @@
+ # Motor-4
+ # The Octopus only has 4 heater outputs which leaves an extra stepper
+ # This can be used for a second Z stepper, dual_carriage, extruder co-stepper,
+-# or other accessory such as an MMU
++# or other accesory such as an MMU
+ #[stepper_]
+ #step_pin: PB8
+ #dir_pin: PB9
+diff -ru /tmp/klipper-upstream/config/generic-bigtreetech-octopus-v1.1.cfg /home/runner/work/u1-klipper/u1-klipper/config/generic-bigtreetech-octopus-v1.1.cfg
+--- /tmp/klipper-upstream/config/generic-bigtreetech-octopus-v1.1.cfg	2026-03-30 17:21:21.920174641 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/config/generic-bigtreetech-octopus-v1.1.cfg	2026-03-30 17:20:31.175336650 +0000
+@@ -52,7 +52,7 @@
+ # Driver3
+ # The Octopus only has 4 heater outputs which leaves an extra stepper
+ # This can be used for a second Z stepper, dual_carriage, extruder co-stepper,
+-# or other accessory such as an MMU
++# or other accesory such as an MMU
+ #[stepper_]
+ #step_pin: PG4
+ #dir_pin: PC1
+diff -ru /tmp/klipper-upstream/config/generic-bigtreetech-skr-2.cfg /home/runner/work/u1-klipper/u1-klipper/config/generic-bigtreetech-skr-2.cfg
+--- /tmp/klipper-upstream/config/generic-bigtreetech-skr-2.cfg	2026-03-30 17:21:21.920174641 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/config/generic-bigtreetech-skr-2.cfg	2026-03-30 17:20:31.175336650 +0000
+@@ -153,48 +153,3 @@
+ #uart_pin: PD12
+ #run_current: 0.600
+ #diag_pin:
+-
+-########################################
+-# TMC2130 configuration
+-########################################
+-
+-#[tmc2130 stepper_x]
+-#cs_pin: PE0
+-#spi_software_miso_pin: PA14
+-#spi_software_mosi_pin: PE14
+-#spi_software_sclk_pin: PE15
+-#run_current: 0.800
+-#diag1_pin: PC1
+-
+-#[tmc2130 stepper_y]
+-#cs_pin: PD3
+-#spi_software_miso_pin: PA14
+-#spi_software_mosi_pin: PE14
+-#spi_software_sclk_pin: PE15
+-#run_current: 0.800
+-#diag1_pin: PC3
+-
+-#[tmc2130 stepper_z]
+-#cs_pin: PD0
+-#spi_software_miso_pin: PA14
+-#spi_software_mosi_pin: PE14
+-#spi_software_sclk_pin: PE15
+-#run_current: 0.800
+-#diag1_pin: PC0
+-
+-#[tmc2130 extruder]
+-#cs_pin: PC6
+-#spi_software_miso_pin: PA14
+-#spi_software_mosi_pin: PE14
+-#spi_software_sclk_pin: PE15
+-#run_current: 0.600
+-#diag1_pin: PC2
+-
+-#[tmc2130 extruder1]
+-#cs_pin: PD12
+-#spi_software_miso_pin: PA14
+-#spi_software_mosi_pin: PE14
+-#spi_software_sclk_pin: PE15
+-#run_current: 0.600
+-#stealthchop_threshold: 999999
+-#diag1_pin: PA0
+diff -ru /tmp/klipper-upstream/config/generic-bigtreetech-skr-mini-e3-v3.0.cfg /home/runner/work/u1-klipper/u1-klipper/config/generic-bigtreetech-skr-mini-e3-v3.0.cfg
+--- /tmp/klipper-upstream/config/generic-bigtreetech-skr-mini-e3-v3.0.cfg	2026-03-30 17:21:21.920174641 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/config/generic-bigtreetech-skr-mini-e3-v3.0.cfg	2026-03-30 17:20:31.175336650 +0000
+@@ -85,10 +85,11 @@
+ tx_pin: PC10
+ uart_address: 3
+ run_current: 0.650
++stealthchop_threshold: 999999
+ 
+ [heater_bed]
+ heater_pin: PC9
+-sensor_type: EPCOS 100K B57560G104F
++sensor_type: ATC Semitec 104GT-2
+ sensor_pin: PC4
+ control: pid
+ pid_Kp: 54.027
+diff -ru /tmp/klipper-upstream/config/generic-bigtreetech-skr-mini-mz.cfg /home/runner/work/u1-klipper/u1-klipper/config/generic-bigtreetech-skr-mini-mz.cfg
+--- /tmp/klipper-upstream/config/generic-bigtreetech-skr-mini-mz.cfg	2026-03-30 17:21:21.920174641 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/config/generic-bigtreetech-skr-mini-mz.cfg	2026-03-30 17:20:31.175336650 +0000
+@@ -122,12 +122,6 @@
+ [static_digital_output usb_pullup_enable]
+ pins: !PA14
+ 
+-#[neopixel my_neopixel]
+-#pin: PA8
+-
+-[output_pin red_led]
+-pin: PA13
+-
+ [board_pins]
+ aliases:
+     # EXP1 header
+diff -ru /tmp/klipper-upstream/config/generic-creality-v4.2.7.cfg /home/runner/work/u1-klipper/u1-klipper/config/generic-creality-v4.2.7.cfg
+--- /tmp/klipper-upstream/config/generic-creality-v4.2.7.cfg	2026-03-30 17:21:21.920174641 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/config/generic-creality-v4.2.7.cfg	2026-03-30 17:20:31.176336647 +0000
+@@ -95,4 +95,4 @@
+ aliases:
+   EXP1_1=PC6,EXP1_3=PB10,EXP1_5=PB14,EXP1_7=PB12,EXP1_9=<GND>,
+   EXP1_2=PB2,EXP1_4=PB11,EXP1_6=PB13,EXP1_8=PB15,EXP1_10=<5V>,
+-  PROBE_IN=PB0,PROBE_OUT=PB1,FIL_RUNOUT=PA4
++  PROBE_IN=PB0,PROBE_OUT=PB1,FIL_RUNOUT=PC6
+Only in /tmp/klipper-upstream/config/: generic-mellow-fly-e3-v2.cfg
+diff -ru /tmp/klipper-upstream/config/generic-mightyboard.cfg /home/runner/work/u1-klipper/u1-klipper/config/generic-mightyboard.cfg
+--- /tmp/klipper-upstream/config/generic-mightyboard.cfg	2026-03-30 17:21:21.922174635 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/config/generic-mightyboard.cfg	2026-03-30 17:20:31.177336644 +0000
+@@ -89,32 +89,32 @@
+ max_z_accel: 100
+ 
+ [mcp4018 x_axis_pot]
+-i2c_software_scl_pin: PJ5
+-i2c_software_sda_pin: PF3
++scl_pin: PJ5
++sda_pin: PF3
+ wiper: 0.50
+ scale: 0.773
+ 
+ [mcp4018 y_axis_pot]
+-i2c_software_scl_pin: PJ5
+-i2c_software_sda_pin: PF7
++scl_pin: PJ5
++sda_pin: PF7
+ wiper: 0.50
+ scale: 0.773
+ 
+ [mcp4018 z_axis_pot]
+-i2c_software_scl_pin: PJ5
+-i2c_software_sda_pin: PK3
++scl_pin: PJ5
++sda_pin: PK3
+ wiper: 0.50
+ scale: 0.773
+ 
+ [mcp4018 a_axis_pot]
+-i2c_software_scl_pin: PJ5
+-i2c_software_sda_pin: PA5
++scl_pin: PJ5
++sda_pin: PA5
+ wiper: 0.50
+ scale: 0.773
+ 
+ [mcp4018 b_axis_pot]
+-i2c_software_scl_pin: PJ5
+-i2c_software_sda_pin: PJ6
++scl_pin: PJ5
++sda_pin: PJ6
+ wiper: 0.50
+ scale: 0.773
+ 
+diff -ru /tmp/klipper-upstream/config/kit-voron2-250mm.cfg /home/runner/work/u1-klipper/u1-klipper/config/kit-voron2-250mm.cfg
+--- /tmp/klipper-upstream/config/kit-voron2-250mm.cfg	2026-03-30 17:21:21.923174631 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/config/kit-voron2-250mm.cfg	2026-03-30 17:20:31.178336640 +0000
+@@ -19,7 +19,7 @@
+ # FSR switch (z endstop) location       [homing_override] section
+ # FSR switch (z endstop) offset for Z0  [stepper_z] section
+ # Probe points                          [quad_gantry_level] section
+-# Min & Max gantry corner positions     [quad_gantry_level] section
++# Min & Max gantry corner postions      [quad_gantry_level] section
+ # PID tune                              [extruder] and [heater_bed] sections
+ # Fine tune E steps                     [extruder] section
+ 
+diff -ru /tmp/klipper-upstream/config/kit-zav3d-2019.cfg /home/runner/work/u1-klipper/u1-klipper/config/kit-zav3d-2019.cfg
+--- /tmp/klipper-upstream/config/kit-zav3d-2019.cfg	2026-03-30 17:21:21.923174631 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/config/kit-zav3d-2019.cfg	2026-03-30 17:20:31.178336640 +0000
+@@ -20,7 +20,7 @@
+ # FSR switch (z endstop) location       [homing_override] section
+ # FSR switch (z endstop) offset for Z0  [stepper_z] section
+ # Probe points                          [quad_gantry_level] section
+-# Min & Max gantry corner positions     [quad_gantry_level] section
++# Min & Max gantry corner postions      [quad_gantry_level] section
+ # PID tune                              [extruder] and [heater_bed] sections
+ # Fine tune E steps                     [extruder] section
+ 
+diff -ru /tmp/klipper-upstream/config/printer-anycubic-kossel-2016.cfg /home/runner/work/u1-klipper/u1-klipper/config/printer-anycubic-kossel-2016.cfg
+--- /tmp/klipper-upstream/config/printer-anycubic-kossel-2016.cfg	2026-03-30 17:21:21.923174631 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/config/printer-anycubic-kossel-2016.cfg	2026-03-30 17:20:31.178336640 +0000
+@@ -17,7 +17,7 @@
+ homing_speed: 60
+ # The next parameter needs to be adjusted for
+ # your printer. You may want to start with 280
+-# and measure the distance from nozzle to bed.
++# and meassure the distance from nozzle to bed.
+ # This value then needs to be added.
+ position_endstop: 273.0
+ arm_length: 229.4
+diff -ru /tmp/klipper-upstream/config/printer-creality-cr10-v3-2020.cfg /home/runner/work/u1-klipper/u1-klipper/config/printer-creality-cr10-v3-2020.cfg
+--- /tmp/klipper-upstream/config/printer-creality-cr10-v3-2020.cfg	2026-03-30 17:21:21.924174628 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/config/printer-creality-cr10-v3-2020.cfg	2026-03-30 17:20:31.179336637 +0000
+@@ -43,7 +43,7 @@
+ #Uncomment if you have a BL-Touch:
+ #position_min: -4
+ #endstop_pin: probe:z_virtual_endstop
+-#and comment the following lines:
++#and comment the follwing lines:
+ position_endstop: 0.0
+ endstop_pin: ^PD3 #ar18
+ 
+diff -ru /tmp/klipper-upstream/config/printer-creality-cr6se-2020.cfg /home/runner/work/u1-klipper/u1-klipper/config/printer-creality-cr6se-2020.cfg
+--- /tmp/klipper-upstream/config/printer-creality-cr6se-2020.cfg	2026-03-30 17:21:21.924174628 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/config/printer-creality-cr6se-2020.cfg	2026-03-30 17:20:31.179336637 +0000
+@@ -1,5 +1,4 @@
+-# This file contains pin mappings for the stock 2020 Creality CR6-SE
+-# with the early 4.5.2 board only.
++# This file contains pin mappings for the stock 2020 Creality CR6-SE.
+ # To use this config, during "make menuconfig" select the STM32F103
+ # with a "28KiB bootloader" and serial (on USART1 PA10/PA9)
+ # communication.
+diff -ru /tmp/klipper-upstream/config/printer-creality-cr6se-2021.cfg /home/runner/work/u1-klipper/u1-klipper/config/printer-creality-cr6se-2021.cfg
+--- /tmp/klipper-upstream/config/printer-creality-cr6se-2021.cfg	2026-03-30 17:21:21.924174628 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/config/printer-creality-cr6se-2021.cfg	2026-03-30 17:20:31.179336637 +0000
+@@ -1,6 +1,4 @@
+-# This file contains pin mappings for the Creality CR6-SE
+-# with Rev. 4.5.3 Motherboard (Late 2020/2021) as the heater pins changed.
+-# This config also works for the CR-ERA_V1.1.0.3
++# This file contains pin mappings for the Creality CR6-SE with Rev. 4.5.3 Motherboard (Late 2020/2021) as the heater pins changed.
+ # To use this config, during "make menuconfig" select the STM32F103
+ # with a "28KiB bootloader" and serial (on USART1 PA10/PA9)
+ # communication.
+diff -ru /tmp/klipper-upstream/config/printer-creality-ender5-s1-2023.cfg /home/runner/work/u1-klipper/u1-klipper/config/printer-creality-ender5-s1-2023.cfg
+--- /tmp/klipper-upstream/config/printer-creality-ender5-s1-2023.cfg	2026-03-30 17:21:21.925174625 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/config/printer-creality-ender5-s1-2023.cfg	2026-03-30 17:20:31.180336634 +0000
+@@ -81,7 +81,7 @@
+ kick_start_time: 0.5
+ 
+ # Hotend fan
+-# set fan running when extruder temperature is over 60
++# set fan runnig when extruder temperature is over 60
+ [heater_fan heatbreak_fan]
+ pin: PC0
+ heater:extruder
+diff -ru /tmp/klipper-upstream/config/printer-creality-ender5pro-2020.cfg /home/runner/work/u1-klipper/u1-klipper/config/printer-creality-ender5pro-2020.cfg
+--- /tmp/klipper-upstream/config/printer-creality-ender5pro-2020.cfg	2026-03-30 17:21:21.925174625 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/config/printer-creality-ender5pro-2020.cfg	2026-03-30 17:20:31.180336634 +0000
+@@ -1,7 +1,7 @@
+ # This file contains pin mappings for the stock 2020 Creality Ender 5
+ # Pro with the 32-bit Creality 4.2.2 board. To use this config, during
+ # "make menuconfig" select the STM32F103 with a "28KiB bootloader" and
+-# communication interface set to "Serial (on USART1 PA10/PA9)".
++# with "Use USB for communication" disabled.
+ 
+ # If you prefer a direct serial connection, in "make menuconfig"
+ # select "Enable extra low-level configuration options" and select the
+diff -ru /tmp/klipper-upstream/config/printer-flashforge-creator-pro-2018.cfg /home/runner/work/u1-klipper/u1-klipper/config/printer-flashforge-creator-pro-2018.cfg
+--- /tmp/klipper-upstream/config/printer-flashforge-creator-pro-2018.cfg	2026-03-30 17:21:21.925174625 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/config/printer-flashforge-creator-pro-2018.cfg	2026-03-30 17:20:31.180336634 +0000
+@@ -127,32 +127,32 @@
+ max_z_accel: 100
+ 
+ [mcp4018 x_axis_pot]
+-i2c_software_scl_pin: PJ5
+-i2c_software_sda_pin: PF3
++scl_pin: PJ5
++sda_pin: PF3
+ wiper: 118
+ scale: 127
+ 
+ [mcp4018 y_axis_pot]
+-i2c_software_scl_pin: PJ5
+-i2c_software_sda_pin: PF7
++scl_pin: PJ5
++sda_pin: PF7
+ wiper: 118
+ scale: 127
+ 
+ [mcp4018 z_axis_pot]
+-i2c_software_scl_pin: PJ5
+-i2c_software_sda_pin: PK3
++scl_pin: PJ5
++sda_pin: PK3
+ wiper: 40
+ scale: 127
+ 
+ [mcp4018 a_axis_pot]
+-i2c_software_scl_pin: PJ5
+-i2c_software_sda_pin: PA5
++scl_pin: PJ5
++sda_pin: PA5
+ wiper: 118
+ scale: 127
+ 
+ [mcp4018 b_axis_pot]
+-i2c_software_scl_pin: PJ5
+-i2c_software_sda_pin: PJ6
++scl_pin: PJ5
++sda_pin: PJ6
+ wiper: 118
+ scale: 127
+ 
+Only in /tmp/klipper-upstream/config/: printer-geeetech-A10T-A20T-2021.cfg
+diff -ru /tmp/klipper-upstream/config/printer-lulzbot-mini1-2016.cfg /home/runner/work/u1-klipper/u1-klipper/config/printer-lulzbot-mini1-2016.cfg
+--- /tmp/klipper-upstream/config/printer-lulzbot-mini1-2016.cfg	2026-03-30 17:21:21.926174621 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/config/printer-lulzbot-mini1-2016.cfg	2026-03-30 17:20:31.181336631 +0000
+@@ -195,7 +195,7 @@
+ samples_tolerance_retries: 2
+ 
+ [bed_tilt]
+-# Enable bed tilt measurements using the probe we defined above
++# Enable bed tilt measurments using the probe we defined above
+ # Probe points using X0 Y0 offsets @ 0.01mm/step
+ points: -2, -6
+         156, -6
+diff -ru /tmp/klipper-upstream/config/printer-lulzbot-taz6-dual-v3-2017.cfg /home/runner/work/u1-klipper/u1-klipper/config/printer-lulzbot-taz6-dual-v3-2017.cfg
+--- /tmp/klipper-upstream/config/printer-lulzbot-taz6-dual-v3-2017.cfg	2026-03-30 17:21:21.926174621 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/config/printer-lulzbot-taz6-dual-v3-2017.cfg	2026-03-30 17:20:31.181336631 +0000
+@@ -183,7 +183,7 @@
+ samples_tolerance: 0.100
+ 
+ [bed_tilt]
+-#Enable bed tilt measurements using the probe we defined above
++#Enable bed tilt measurments using the probe we defined above
+ #Probe points using X0 Y0 offsets @ 0.01mm/step
+ points: -3, -6
+         282, -6
+diff -ru /tmp/klipper-upstream/config/printer-robo3d-r2-2017.cfg /home/runner/work/u1-klipper/u1-klipper/config/printer-robo3d-r2-2017.cfg
+--- /tmp/klipper-upstream/config/printer-robo3d-r2-2017.cfg	2026-03-30 17:21:21.927174618 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/config/printer-robo3d-r2-2017.cfg	2026-03-30 17:20:31.181336631 +0000
+@@ -37,7 +37,7 @@
+ rotation_distance: 4
+ # Required if not using probe for the virtual endstop
+ # endstop_pin: ^PD3
+-# position_endstop: 250 # Will need adjustment
++# position_endstop: 250 # Will need ajustment
+ endstop_pin: probe:z_virtual_endstop
+ homing_speed: 10.0
+ position_max: 250
+diff -ru /tmp/klipper-upstream/config/printer-seemecnc-rostock-max-v2-2015.cfg /home/runner/work/u1-klipper/u1-klipper/config/printer-seemecnc-rostock-max-v2-2015.cfg
+--- /tmp/klipper-upstream/config/printer-seemecnc-rostock-max-v2-2015.cfg	2026-03-30 17:21:21.927174618 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/config/printer-seemecnc-rostock-max-v2-2015.cfg	2026-03-30 17:20:31.182336628 +0000
+@@ -1,4 +1,4 @@
+-# This file contains the pin mappings for the SeeMeCNC Rostock Max
++# This file constains the pin mappings for the SeeMeCNC Rostock Max
+ # (version 2) delta printer from 2015. To use this config, the
+ # firmware should be compiled for the AVR atmega2560.
+ 
+diff -ru /tmp/klipper-upstream/config/sample-bigtreetech-ebb-canbus-v1.1.cfg /home/runner/work/u1-klipper/u1-klipper/config/sample-bigtreetech-ebb-canbus-v1.1.cfg
+--- /tmp/klipper-upstream/config/sample-bigtreetech-ebb-canbus-v1.1.cfg	2026-03-30 17:21:21.928174615 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/config/sample-bigtreetech-ebb-canbus-v1.1.cfg	2026-03-30 17:20:31.183336624 +0000
+@@ -11,7 +11,9 @@
+ 
+ [adxl345]
+ cs_pin: EBBCan:PB12
+-spi_bus: spi2_PB2_PB11_PB10
++spi_software_sclk_pin: EBBCan:PB10
++spi_software_mosi_pin: EBBCan:PB11
++spi_software_miso_pin: EBBCan:PB2
+ axes_map: x,y,z
+ 
+ [extruder]
+diff -ru /tmp/klipper-upstream/config/sample-bigtreetech-ebb-canbus-v1.2.cfg /home/runner/work/u1-klipper/u1-klipper/config/sample-bigtreetech-ebb-canbus-v1.2.cfg
+--- /tmp/klipper-upstream/config/sample-bigtreetech-ebb-canbus-v1.2.cfg	2026-03-30 17:21:21.928174615 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/config/sample-bigtreetech-ebb-canbus-v1.2.cfg	2026-03-30 17:20:31.183336624 +0000
+@@ -11,7 +11,9 @@
+ 
+ [adxl345]
+ cs_pin: EBBCan:PB12
+-spi_bus: spi2_PB2_PB11_PB10
++spi_software_sclk_pin: EBBCan:PB10
++spi_software_mosi_pin: EBBCan:PB11
++spi_software_miso_pin: EBBCan:PB2
+ axes_map: x,y,z
+ 
+ [extruder]
+diff -ru /tmp/klipper-upstream/config/sample-bigtreetech-ebb-sb-canbus-v1.0.cfg /home/runner/work/u1-klipper/u1-klipper/config/sample-bigtreetech-ebb-sb-canbus-v1.0.cfg
+--- /tmp/klipper-upstream/config/sample-bigtreetech-ebb-sb-canbus-v1.0.cfg	2026-03-30 17:21:21.928174615 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/config/sample-bigtreetech-ebb-sb-canbus-v1.0.cfg	2026-03-30 17:20:31.183336624 +0000
+@@ -15,7 +15,9 @@
+ 
+ [adxl345]
+ cs_pin: EBBCan:PB12
+-spi_bus: spi2_PB2_PB11_PB10
++spi_software_sclk_pin: EBBCan:PB10
++spi_software_mosi_pin: EBBCan:PB11
++spi_software_miso_pin: EBBCan:PB2
+ axes_map: x,y,z
+ 
+ [extruder]
+Only in /tmp/klipper-upstream/config/: sample-cartographer-v3.cfg
+Only in /tmp/klipper-upstream/config/: sample-corexyuv.cfg
+diff -ru /tmp/klipper-upstream/config/sample-duet3-1lc.cfg /home/runner/work/u1-klipper/u1-klipper/config/sample-duet3-1lc.cfg
+--- /tmp/klipper-upstream/config/sample-duet3-1lc.cfg	2026-03-30 17:21:21.928174615 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/config/sample-duet3-1lc.cfg	2026-03-30 17:20:31.183336624 +0000
+@@ -6,7 +6,7 @@
+ # Communication interface of "CAN bus (on PA25/PA24)"
+ 
+ # To flash the board use a debugger, or use a raspberry pi and follow
+-# the instructions at docs/Bootloaders.md for the SAMC21. You may
++# the instructions at docs/Bootloaders.md fot the SAMC21. You may
+ # supply power to the 1LC by connecting the 3.3v rail on the Pi to the
+ # 5v input of the SWD header on the 1LC.
+ 
+@@ -77,14 +77,5 @@
+ pin: toolboard:PA9
+ z_offset: 20
+ 
+-[samd_sercom sercom_i2c]
+-sercom: sercom1
+-tx_pin: toolboard:PA16
+-clk_pin: toolboard:PA17
+-
+-[lis3dh]
+-i2c_mcu: toolboard
+-i2c_bus: sercom1
+-
+ [mcu toolboard]
+ canbus_uuid: 4b194673554e
+diff -ru /tmp/klipper-upstream/config/sample-mmu2s-diy.cfg /home/runner/work/u1-klipper/u1-klipper/config/sample-mmu2s-diy.cfg
+--- /tmp/klipper-upstream/config/sample-mmu2s-diy.cfg	2026-03-30 17:21:21.929174611 +0000
++++ /home/runner/work/u1-klipper/u1-klipper/config/sample-mmu2s-diy.cfg	2026-03-30 17:20:31.184336621 +0000
+@@ -96,7 +96,7 @@
+ # variable_pause_z               : z lift when MMU2S need intervention and the printer is paused
+ # variable_min_temp_extruder     : minimal required heater temperature to load/unload filament from the extruder gear to the nozzle
+ # variable_extruder_eject_temp   : heater temperature used to eject filament during home if the filament is already loaded
+-# variable_enable_5in1           : pass from MMU2S standard (0) to MMU2S-5in1 mode with splitter
++# variable_enable_5in1           : pass from MMU2S standart (0) to MMU2S-5in1 mode with splitter
+ #
+ ################################
+ [gcode_macro VAR_MMU2S]
+@@ -394,7 +394,7 @@
+     {% endif %}
+     {% endif %}
+ 
+-# Retry unload, try correct misalignment of bondtech gear
++# Retry unload, try correct misalignement of bondtech gear
+ [gcode_macro RETRY_UNLOAD_FILAMENT_IN_EXTRUDER]
+ gcode:
+     {% if printer["filament_switch_sensor ir_sensor"].filament_detected == True %}
+@@ -444,7 +444,7 @@
+     {% endif %}
+     {% endif %}
+ 
+-# Ramming process for standard PLA, code extracted from slic3r gcode
++# Ramming process for standart PLA, code extracted from slic3r gcode
+ [gcode_macro RAMMING_SLICER]
+ gcode:
+     G91
+@@ -506,7 +506,7 @@
+     {% if printer["gcode_macro SELECT_TOOL"].tool_selected|int != -1 %}
+         M118 Loading filament to PINDA ...
+         MANUAL_STEPPER STEPPER=gear_stepper SET_POSITION=0
+-        MANUAL_STEPPER STEPPER=gear_stepper MOVE={printer["gcode_macro VAR_MMU2S"].pinda_load_length} STOP_ON_ENDSTOP=try_home
++        MANUAL_STEPPER STEPPER=gear_stepper MOVE={printer["gcode_macro VAR_MMU2S"].pinda_load_length} STOP_ON_ENDSTOP=2
+         MANUAL_STEPPER STEPPER=gear_stepper SET_POSITION=0
+         MANUAL_STEPPER STEPPER=gear_stepper MOVE=10
+         IS_FILAMENT_IN_PINDA
+@@ -579,7 +579,7 @@
+         M118 Unloading filament from extruder to PINDA ...
+         MANUAL_STEPPER STEPPER=gear_stepper SET_POSITION=0
+         {% if printer["gcode_macro VAR_MMU2S"].enable_5in1 == 0 %}
+-        MANUAL_STEPPER STEPPER=gear_stepper MOVE=-{printer["gcode_macro VAR_MMU2S"].bowden_unload_length} SPEED=120 ACCEL=80 STOP_ON_ENDSTOP=try_inverted_home
++        MANUAL_STEPPER STEPPER=gear_stepper MOVE=-{printer["gcode_macro VAR_MMU2S"].bowden_unload_length} SPEED=120 ACCEL=80 STOP_ON_ENDSTOP=-2
+         IS_FILAMENT_STUCK_IN_PINDA
+         {% else %}
+         MANUAL_STEPPER STEPPER=gear_stepper MOVE=-{printer["gcode_macro VAR_MMU2S"].bowden_unload_length} SPEED=120 ACCEL=80
+@@ -792,7 +792,7 @@
+     {% if printer["gcode_macro VAR_MMU2S"].enable_5in1 == 0 %}
+     M118 Homing selector
+     MANUAL_STEPPER STEPPER=selector_stepper SET_POSITION=0
+-    MANUAL_STEPPER STEPPER=selector_stepper MOVE=-76 STOP_ON_ENDSTOP=home
++    MANUAL_STEPPER STEPPER=selector_stepper MOVE=-76 STOP_ON_ENDSTOP=1
+     MANUAL_STEPPER STEPPER=selector_stepper SET_POSITION=0
+     {% endif %}
+     MANUAL_STEPPER STEPPER=idler_stepper MOVE=0
