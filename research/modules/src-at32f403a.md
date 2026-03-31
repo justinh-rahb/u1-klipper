@@ -6,7 +6,7 @@ A fork-exclusive C source file providing board-level initialisation for the **Ar
 ## Changed From Upstream
 | Upstream Behaviour | Fork Behaviour | Likely Reason |
 |---|---|---|
-| No AT32F403A support | `at32f403a_clock_setup()` called by `DECL_INIT` equivalent to set system clock and USB clock | Snapmaker U1 main SoC MCU uses AT32F403A |
+| No AT32F403A support | `at32f403a_clock_setup()` called from `src/stm32/stm32f1.c:281` inside a `#elif CONFIG_MACH_AT32F403A` block to set system clock and USB clock | Snapmaker U1 main SoC MCU uses AT32F403A |
 | N/A | Debug UART on USART3/PB10 with optional `RESERVE_PINS_debug_uart_tx_pin` constant | Factory/debug logging on embedded hardware |
 
 ## Additions
@@ -18,7 +18,7 @@ A fork-exclusive C source file providing board-level initialisation for the **Ar
 - `usb_clock48m_select(usb_clk48_s clk_s)` — selects the USB 48 MHz source:
   - `USB_CLK_HICK` path: enables `CRM_ACC_PERIPH_CLOCK`, writes ACC calibration constants (`c1=7980`, `c2=8000`, `c3=8020`), enables HICK auto-trim.
   - `USB_CLK_HEXT` path: sets `CRM_USB_DIV_*` based on `SystemCoreClock` (48/72/96/120/144/168/192 MHz).
-- `mcu_uart_gpio_remap()` — enables `UART5_GMUX_0001` remap (conditional on `CONFIG_STM32_SERIAL_AT_USART5_PB8_PB9`).
+- `mcu_uart_gpio_remap()` — enables `UART5_GMUX_0001` remap (conditional on `CONFIG_STM32_SERIAL_AT_USART5_PB8_PB9 || CONFIG_STM32_USBCANBUS_PA11_PA12_AND_SERIAL_USART5_PB8_PB9`). Both the `.c` implementation and the `.h` forward declaration share this dual guard.
 - `mcu_can2_gpio_remap()` — enables `CAN2_GMUX_0001`.
 - `mcu_spi4_gpio_remap()` — enables `SPI4_GMUX_0001`.
 - `at32f403a_clock_setup()` — calls `system_clock_config()`, `usb_clock48m_select(USB_CLK_HICK)`, and enables the USB peripheral clock.
@@ -49,7 +49,7 @@ A fork-exclusive C source file providing board-level initialisation for the **Ar
 +void mcu_uart_gpio_remap(void);
 +void mcu_can2_gpio_remap(void);
 +void mcu_spi4_gpio_remap(void);
-+void at32f403a_clock_setup(void);  // called by DECL_INIT chain
++void at32f403a_clock_setup(void);  // called from stm32f1.c:281 (#elif CONFIG_MACH_AT32F403A)
 ```
 
 </details>
