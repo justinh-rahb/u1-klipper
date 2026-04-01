@@ -231,7 +231,73 @@ sub-degree accuracy.
 
 ---
 
-## 7. Glossary
+## 7. Multi-Harmonic Extension (Planned)
+
+The current implementation extracts only the fundamental (m = 1).  Real
+stepper motors exhibit periodic errors at **multiple harmonics** of the
+electrical period — primarily at m = 2 (half-period cogging) and m = 4
+(quarter-period, related to the 4 full-step positions per electrical cycle).
+
+Research into Prusa's production phase-stepping system (see
+`research/prusa-phase-stepping-analysis.md`) confirms that harmonics 2 and 4
+are the dominant error sources.
+
+### 7.1 Generalised Correction Model
+
+Instead of a single offset φ̂, the full model uses a Fourier series:
+
+$$
+\delta(\theta) = \sum_{n=1}^{H} a_n \sin(n\theta + \phi_n)
+$$
+
+where *H* is the highest corrected harmonic.  The corrected stator phase
+becomes θ + δ(θ), and the per-phase currents are:
+
+$$
+I_A(\theta) = I_0 \sin\!\bigl(\theta + \delta(\theta)\bigr), \qquad
+I_B(\theta) = I_0 \cos\!\bigl(\theta + \delta(\theta)\bigr)
+$$
+
+### 7.2 Extracting Multiple Harmonics
+
+Given the N-point response signal r(k), each harmonic's parameters are
+recovered from the corresponding DFT bin:
+
+$$
+R(n) = \sum_{k=0}^{N-1} r(k)\, e^{-j\,2\pi nk/N}
+$$
+
+$$
+a_n = \frac{2|R(n)|}{N}, \qquad \phi_n = \angle R(n)
+$$
+
+The fundamental-only circular mean (Section 4) is the special case n = 1.
+
+### 7.3 Windowed DFT
+
+When the sweep does not cover an exact integer number of electrical periods,
+spectral leakage blurs the harmonic estimates.  Applying a **Hann window**
+before the DFT mitigates this:
+
+$$
+w_H(k) = \frac{1}{2}\left(1 - \cos\frac{2\pi k}{N-1}\right)
+$$
+
+$$
+R_H(n) = \sum_{k=0}^{N-1} w_H(k)\, r(k)\, e^{-j\,2\pi nk/N}
+$$
+
+This is the approach used in Prusa's `SlidingDftWindow::get_windowed_magnitude()`.
+
+### 7.4 Direction-Dependent Correction
+
+Motor correction can differ between forward and backward motion (friction
+asymmetry, mechanical backlash).  Calibrating in both directions and storing
+separate {aₙ, ϕₙ} sets for each direction improves accuracy.
+
+---
+
+## 8. Glossary
 
 | Symbol | Meaning |
 |--------|---------|
@@ -246,10 +312,15 @@ sub-degree accuracy.
 | n̂ | Phase offset in microstep-index units |
 | R(m) | DFT of response signal at harmonic *m* |
 | T<sub>dwell</sub> | Dwell time per angle step (default 20 ms) |
+| δ(θ) | Total phase correction function (Fourier series) |
+| H | Highest corrected harmonic |
+| aₙ | Magnitude of harmonic *n* correction |
+| ϕₙ | Phase of harmonic *n* correction |
+| w<sub>H</sub>(k) | Hann window function |
 
 ---
 
-## 8. References
+## 9. References
 
 1. K.V. Mardia and P.E. Jupp, *Directional Statistics*, Wiley, 2000 —
    circular mean definition and properties (Chapter 2).
@@ -258,3 +329,7 @@ sub-degree accuracy.
 3. S.M. Kay, *Fundamentals of Statistical Signal Processing: Estimation
    Theory*, Prentice Hall, 1993 — Cramér–Rao bound for sinusoidal phase
    estimation (Chapter 3).
+4. Prusa Research, *Prusa-Firmware-Buddy* `phase_stepping` module —
+   production implementation of multi-harmonic phase correction with
+   accelerometer-based calibration.  See `research/prusa-phase-stepping-analysis.md`
+   for a detailed comparison.
