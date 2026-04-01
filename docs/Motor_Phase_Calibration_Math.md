@@ -65,14 +65,14 @@ The DIRECT\_MODE register accepts 9-bit signed DAC codes in the range
 milliamps) is mapped to a DAC scale factor:
 
 $$
-s = \operatorname{clamp}\!\left(\left\lfloor \frac{I_{\mathrm{mA}} \cdot 255}{2000}\right\rfloor,\; 1,\; 255\right)
+s = \mathrm{clamp}\!\left(\left\lfloor \frac{I_{\mathrm{mA}} \cdot 255}{2000}\right\rfloor,\; 1,\; 255\right)
 $$
 
 The per-step DAC values are then:
 
 $$
-\text{cur\_a}(k) = \lfloor s \cos\theta_k \rfloor, \qquad
-\text{cur\_b}(k) = \lfloor s \sin\theta_k \rfloor
+\text{cur\\_a}(k) = \lfloor s \cos\theta_k \rfloor, \qquad
+\text{cur\\_b}(k) = \lfloor s \sin\theta_k \rfloor
 $$
 
 The factor of 2000 in the denominator is a conservative choice that maps the
@@ -87,7 +87,7 @@ on the sense resistor value and the TMC2240 GLOBALSCALER register.
 At each angle step *k* the host reads the StallGuard4 result register:
 
 $$
-r(k) = \text{SG4\_RESULT}(\theta_k)
+r(k) = \text{SG4\\_RESULT}(\theta_k)
 $$
 
 StallGuard measures the motor's back-EMF relative to the expected load
@@ -134,7 +134,7 @@ ADC), the algorithm degenerates gracefully to a *uniform* circular mean
 The estimated phase offset is:
 
 $$
-\hat\phi = \operatorname{atan2}\!\left(\frac{S}{W},\; \frac{C}{W}\right),
+\hat\phi = \mathrm{atan2}\!\left(\frac{S}{W},\; \frac{C}{W}\right),
 \qquad W = \sum_{k=0}^{N-1} w_k
 $$
 
@@ -172,7 +172,7 @@ then the fundamental component (*m* = 1) has magnitude and phase:
 
 $$
 |R(1)| = \sqrt{C^2 + S^2}, \qquad
-\angle R(1) = \operatorname{atan2}(S, C)
+\angle R(1) = \mathrm{atan2}(S, C)
 $$
 
 which is exactly the circular-mean angle φ̂.
@@ -204,7 +204,7 @@ sinusoid in additive white Gaussian noise.  Its variance is bounded by the
 Cramér–Rao lower bound:
 
 $$
-\operatorname{Var}(\hat\phi) \;\ge\; \frac{2}{N \cdot \mathrm{SNR}}
+\mathrm{Var}(\hat\phi) \;\ge\; \frac{2}{N \cdot \mathrm{SNR}}
 $$
 
 where SNR is the signal-to-noise ratio of the fundamental component.
