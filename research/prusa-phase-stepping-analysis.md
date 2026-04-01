@@ -225,18 +225,23 @@ existing sweep code.
 **Prusa's advantage:** An on-board accelerometer at 1500 Hz provides direct
 measurement of vibration amplitude at any motor harmonic.
 
-**U1's limitation:** We have no accelerometer.  Our options are:
+**U1's capability:** The U1 toolhead has an on-board **LIS2DW** 3-axis
+accelerometer (SPI1, CS=e0:PA4, axes\_map: y,x,z) already used for input-shaper
+resonance testing.  This gives us near-parity with Prusa's sensor approach.
 
-1. **SG4_RESULT readback** — gives a proxy for motor load/back-EMF at ~1ms
+Available measurement channels for phase stepping calibration:
+
+1. **LIS2DW accelerometer** — on-board, directly measures vibration amplitude.
+   Can be used for Prusa-style sliding-window DFT calibration during motor
+   sweeps.  Already integrated into Klipper via `klippy/extras/lis2dw.py`.
+2. **SG4_RESULT readback** — gives a proxy for motor load/back-EMF at ~1ms
    intervals.  Usable for slow sweeps but aliased at higher harmonics.
-2. **External accelerometer** — could be attached temporarily for calibration
-   (like Klipper's ADXL345 for input shaping).  This would give us near-parity
-   with Prusa's approach.
+   Serves as a fallback when accelerometer data is unavailable.
 3. **MSCURACT readback** — reports the actual microstep currents being applied;
    comparing commanded vs actual can reveal phase errors.
 
-**Recommendation:** Add optional ADXL345 support for calibration, while
-keeping SG4_RESULT as the fallback for sensor-less operation.
+**Recommendation:** Use the on-board LIS2DW for accelerometer-based
+calibration (similar to Prusa), with SG4\_RESULT as a fallback.
 
 ### 3.5 Windowed DFT vs Our Circular Mean
 
@@ -304,8 +309,8 @@ phase stepping on U1.
    via per-bin DFT, storing `{mag, pha}` for each.  Apply a Hann window.
 2. **Short-term** — Add forward/backward sweep capability.  Store directional
    corrections.
-3. **Medium-term** — Add optional ADXL345 accelerometer support for calibration
-   (Klipper already has the infrastructure for input shaping).
+3. **Medium-term** — Integrate the on-board LIS2DW accelerometer into the
+   calibration sweep for Prusa-style vibration-based harmonic extraction.
 4. **Long-term** — Implement ISR-driven corrected waveform on the AT32F415RC
    toolhead MCU, modelled on Prusa's `handle_periodic_refresh()`.
 
