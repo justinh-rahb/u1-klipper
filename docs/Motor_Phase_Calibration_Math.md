@@ -26,12 +26,18 @@ full control of the stator field vector.
 
 ### 1.1 Hardware Context
 
+On the U1 the **X and Y axis steppers** are the relevant calibration targets.
+Their TMC2240 drivers sit on the **mainboard** (AT32F403A) and communicate
+over the mainboard SPI buses (SPI2 for X, SPI4 for Y).  The Z axis uses a
+TMC2209, and the four extruder toolhead MCUs (AT32F415RC) also use TMC2209
+— neither the Z stepper nor the extruders support DIRECT\_MODE and cannot be
+calibrated with this module.
+
 The U1 printer has four toolhead MCUs (AT32F415RC) connected to the mainboard
 over a **CAN bus** (the CAN-to-USB bridge is USB-attached to the SBC, but the
-toolhead link itself is CAN).  Each toolhead MCU talks to its local TMC2240
-over SPI.  The host Python layer performs the TMC register reads and writes;
-the MCU-side firmware only provides a timer-driven state machine for
-sequencing angle steps.
+toolhead link itself is CAN).  The host Python layer performs the TMC register
+reads and writes; the MCU-side firmware only provides a timer-driven state
+machine for sequencing angle steps.
 
 ---
 

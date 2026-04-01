@@ -234,7 +234,7 @@ class MotorPhaseCalibrate:
     cmd_MOTOR_PHASE_CALIBRATE_help = (
         "Run full motor phase calibration sequence")
     def cmd_MOTOR_PHASE_CALIBRATE(self, gcmd):
-        stepper = gcmd.get('STEPPER', 'extruder')
+        stepper = gcmd.get('STEPPER', 'stepper_x')
         current = gcmd.get_int('CURRENT', DEFAULT_SWEEP_CURRENT,
                                minval=10, maxval=2000)
         steps = gcmd.get_int('STEPS', DEFAULT_SWEEP_STEPS,
@@ -264,7 +264,7 @@ class MotorPhaseCalibrate:
     cmd_MOTOR_PHASE_SWEEP_help = (
         "Sweep electrical angle and collect samples")
     def cmd_MOTOR_PHASE_SWEEP(self, gcmd):
-        stepper = gcmd.get('STEPPER', 'extruder')
+        stepper = gcmd.get('STEPPER', 'stepper_x')
         current = gcmd.get_int('CURRENT', DEFAULT_SWEEP_CURRENT,
                                minval=10, maxval=2000)
         steps = gcmd.get_int('STEPS', DEFAULT_SWEEP_STEPS,
@@ -286,7 +286,7 @@ class MotorPhaseCalibrate:
 
     cmd_MOTOR_PHASE_REPORT_help = "Report last phase calibration result"
     def cmd_MOTOR_PHASE_REPORT(self, gcmd):
-        stepper = gcmd.get('STEPPER', 'extruder')
+        stepper = gcmd.get('STEPPER', 'stepper_x')
         if self.last_offset is not None:
             gcmd.respond_info(
                 "Last phase offset for '%s': %.4f (%d samples)"
