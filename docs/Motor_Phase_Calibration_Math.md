@@ -254,8 +254,8 @@ where *H* is the highest corrected harmonic.  The corrected stator phase
 becomes θ + δ(θ), and the per-phase currents are:
 
 $$
-I_A(\theta) = I_0 \sin\!\bigl(\theta + \delta(\theta)\bigr), \qquad
-I_B(\theta) = I_0 \cos\!\bigl(\theta + \delta(\theta)\bigr)
+I_A(\theta) = I_0 \cos\!\bigl(\theta + \delta(\theta)\bigr), \qquad
+I_B(\theta) = I_0 \sin\!\bigl(\theta + \delta(\theta)\bigr)
 $$
 
 ### 7.2 Extracting Multiple Harmonics

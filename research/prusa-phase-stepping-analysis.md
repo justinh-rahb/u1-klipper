@@ -97,6 +97,9 @@ $$
 \hat{f}_1 = \frac{\sum_i p_i / h_i}{\sum_i 1/h_i^2}
 $$
 
+(This is the standard weighted least-squares solution for minimising
+E = Σ(pᵢ − f̂₁/hᵢ)²: take dE/df̂₁ = 0 and solve for f̂₁.)
+
 This least-squares estimate finds the fundamental frequency that best explains
 all detected peaks.
 
