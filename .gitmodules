@@ -1,0 +1,6 @@
+[submodule "klipper"]
+	path = klipper
+	url = https://github.com/Klipper3d/klipper.git
+[submodule "tmc-docs"]
+	path = tmc-docs
+	url = https://github.com/analogdevicesinc/TMC-API.git
