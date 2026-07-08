@@ -4,3 +4,6 @@
 [submodule "tmc-docs"]
 	path = tmc-docs
 	url = https://github.com/analogdevicesinc/TMC-API.git
+[submodule "research/prusa-firmware-buddy"]
+	path = research/prusa-firmware-buddy
+	url = https://github.com/prusa3d/Prusa-Firmware-Buddy
