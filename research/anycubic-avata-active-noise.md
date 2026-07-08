@@ -219,11 +219,83 @@ This is very close in spirit to Bambu/Prusa active motor noise calibration:
 measure vibration while exciting the axis, fit a periodic correction, and
 apply the correction in realtime to the motor phase/current waveform.
 
+## Architecture Comparison
+
+Three vendors converge on similar "quiet motor" marketing with three
+genuinely different implementations:
+
+- **Bambu**: custom H-bridges, no TMC drivers.  The main MCU already owns
+  the full current-control loop, so harmonic correction is just an
+  additional term in math it was doing anyway.  No seam, no coprocessor.
+- **Prusa**: TMC drivers plus Marlin-derived firmware.  The driver
+  interface lives in the same MCU domain as motion, so DIRECT_MODE-style
+  current shaping is architecturally available without a separate chip.
+  Their published quiet-motor work is primarily Input Shaper
+  (trajectory-level shaping from accelerometer resonance data) layered
+  with TMC StealthChop2 — no per-electrical-cycle current correction is
+  required for the "quiet" claim.
+- **Anycubic**: TMC as a black box, no clean hook for arbitrary current
+  vectors short of DIRECT_MODE streaming.  Rather than fight determinism
+  on the main GD32F303 (already carrying gcode, step generation, comms,
+  UI), the harmonic correction runs on a separate motor MCU that owns
+  that timing domain outright.
+
+## Third-Party IP Hypothesis
+
+Several signals suggest the motor-MCU firmware isn't Anycubic's own DSP
+work but an integrated third-party module:
+
+- **MCU choice is out of pattern.**  Anycubic reaches for the GD32F303
+  almost universally.  Picking an Artery AT32F403A only for the motor
+  subsystem, with the datasheet highlighting DSP instructions "for
+  efficient signal processing", reads more like a vendor bringing their
+  own reference firmware on pinned silicon than a deliberate Anycubic
+  architecture choice.
+- **Naming is generic.**  `motoranc` and `MotorAnc` don't match the rest
+  of the Anycubic namespace conventions — looks like the internals of a
+  wrapped vendor SDK that didn't get renamed.
+- **Code style differs.**  The seam between `avata_main` and the
+  motor-MCU protocol reads like an IP boundary, not an internal API
+  Anycubic designed.
+- **KS1M backport is the strongest evidence.**  ANC was ported to a
+  single EOL K3-line printer (KS1M, Go-based) alongside the K4/Avata
+  (C++).  Writing a DFT/harmonic-fit/waveform-shaping pipeline twice,
+  in two languages, for one obsolete SKU, is a lot of engineering for
+  questionable ROI.  But if the intelligence lives on the motor MCU and
+  both host stacks are just command/protocol shims, "adding support"
+  collapses to wiring up UART commands.  Cheaply explains both the
+  backport and the consistent quality across product lines that share
+  basically nothing else architecturally.
+
+**Testable prediction**: if this theory is right, the ANC-related code
+paths in the KS1M Go host and the Avata C++ host should look suspiciously
+thin and near-identical in structure — command marshaling and status
+parsing, no actual math.  If either host contains real harmonic-fitting
+logic, the theory is falsified.
+
+The practical consequence for U1: we're not reverse-engineering a
+coherent Anycubic design philosophy, we're reverse-engineering a chip
+vendor's demo that got slotted into the product.  Our own implementation
+doesn't owe it any structural resemblance — the split we choose can
+follow what fits Klipper's execution model, not what fit Anycubic's IP
+integration constraints.
+
 ## Implications for Proper Klipper on U1
 
 U1 can implement the same class of feature without Anycubic's separate motor
 MCU because X/Y use TMC2240 and support `DIRECT_MODE`.  The hard part is
-realtime synchronization with Klipper step generation.
+realtime synchronization with Klipper step generation.  Prusa's shipping
+DIRECT_MODE-style current work on Marlin-derived firmware is a decent
+existence proof that this is viable in a shared-domain architecture —
+Klipper's MCU-side timing model, built around precise scheduled events,
+is arguably better suited to it than Marlin's, not worse.
+
+Note also the trust boundary: interfacing with an Anycubic motor MCU
+would mean handing realtime current control to a black box running its
+own fault-monitoring and control law, with no visibility into either.
+That is a materially different risk profile than a LUT we compute and
+load ourselves — worth remembering if the topic of piggybacking on
+Anycubic hardware ever comes up.
 
 Suggested path:
 
@@ -258,4 +330,11 @@ Open questions:
   acceptance/stability test?
 - What motor-MCU command payload ultimately corresponds to Avata's
   `ACTIVE_NOISE_REDUCTION_*` script commands?
+- Does the KS1M Go host implementation of ANC look like a thin
+  command/protocol shim (near-identical in structure to Avata's C++
+  path, no harmonic-fitting math), or does it contain real DSP logic?
+  A thin shim corroborates the third-party-IP hypothesis; real math
+  falsifies it.  KS1M's older, smaller Go codebase is likely easier to
+  pull apart than Avata's C++ — worth checking whether its firmware or
+  source is any more accessible.
 
