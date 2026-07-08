@@ -48,9 +48,9 @@ The Kobra X board photo shows a dedicated Artery MCU:
 
 - Marking: `AT32F403ARGT7`
 - Same AT32F403A family as the U1 mainboard MCU.
-- The Kobra X/S1 board has a separate motor-driver/control section, consistent
-  with Anycubic putting the tight realtime waveform work on a motor MCU instead
-  of the weak Linux SoC.
+- The Kobra X / KS1M-class boards have a separate motor-driver/control section,
+  consistent with Anycubic putting the tight realtime waveform work on a motor
+  MCU instead of the weak Linux SoC.
 
 The UI and host fault strings expose motor-MCU-specific errors:
 
@@ -288,7 +288,7 @@ It also has debug strings that look like thin send/receive plumbing:
 
 Targeted disassembly supports the thin-shim read:
 
-- `cmd_ACTIVE_NOISE_REDUCTION` parses `AXIS` and `SPEED`, then tail-calls
+- `cmd_ACTIVE_NOISE_REDUCTION` parses `AXIS` and `SPEED`, then calls
   `cmd_motor_anc`.
 - `cmd_ACTIVE_NOISE_REDUCTION_ARC` parses arc parameters and calls
   `cmd_motor_anc_arc`.
@@ -301,9 +301,9 @@ Targeted disassembly supports the thin-shim read:
   string.
 - `cmd_motor_anc` formats/sends `motor_anc_state oid=%c axis=%c state=%c
   speed=%hu` and emits the `[MotorAnc] motor_anc_state_cmd` debug string.
-- `cmd_motor_anc_arc` also references `G3 I%v J%v F%v`, so the arc stage is
-  host-generated motion plus motor-MCU state commands, not a host-side DSP
-  solve.
+- `cmd_motor_anc_arc` also references `G3 I%v J%v F%v`, so the arc stage
+  appears to be host-generated motion plus motor-MCU state commands, with no
+  evidence of a host-side DSP solve in this path.
 
 The host binary does contain FFT, PSD, and vector math code, but those symbols
 are under `k3c/internal/pkg/motion/vibration`:
@@ -353,25 +353,26 @@ Anycubic's system appears to split responsibilities like this:
    - `Z_Harmonic_Table`
    - `error_rate`
 
-This is very close in spirit to Bambu/Prusa active motor noise calibration:
+This is very close in spirit to Bambu-style active motor noise calibration:
 measure vibration while exciting the axis, fit a periodic correction, and
-apply the correction in realtime to the motor phase/current waveform.
+apply the correction in realtime to the motor phase/current waveform.  It is
+also adjacent to Prusa's current-level phase-stepping work, while remaining
+separate from Prusa's more common trajectory-level Input Shaper workflow.
 
 ## Architecture Comparison
 
 Three vendors converge on similar "quiet motor" marketing with three
 genuinely different implementations:
 
-- **Bambu**: custom H-bridges, no TMC drivers.  The main MCU already owns
-  the full current-control loop, so harmonic correction is just an
-  additional term in math it was doing anyway.  No seam, no coprocessor.
-- **Prusa**: TMC drivers plus Marlin-derived firmware.  The driver
-  interface lives in the same MCU domain as motion, so DIRECT_MODE-style
-  current shaping is architecturally available without a separate chip.
-  Their published quiet-motor work is primarily Input Shaper
-  (trajectory-level shaping from accelerometer resonance data) layered
-  with TMC StealthChop2 — no per-electrical-cycle current correction is
-  required for the "quiet" claim.
+- **Bambu**: appears to avoid the same TMC-black-box constraint for this
+  feature.  If their motion controller owns the relevant current-control path,
+  harmonic correction can be integrated into math already happening in that
+  timing domain.  No obvious bolt-on protocol seam is exposed.
+- **Prusa**: TMC drivers plus Marlin-derived firmware.  Their public
+  ecosystem has both trajectory-level Input Shaper work and current-level
+  phase-stepping work.  The important architectural distinction here is that
+  the driver interface and motion code live in the same MCU domain, so this
+  class of current shaping does not inherently require a separate motor MCU.
 - **Anycubic**: TMC as a black box, no clean hook for arbitrary current
   vectors short of DIRECT_MODE streaming.  Rather than fight determinism
   on the main GD32F303 (already carrying gcode, step generation, comms,
