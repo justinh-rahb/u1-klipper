@@ -394,7 +394,7 @@ DECL_TASK(motor_phase_task);
 
 // ---------- shutdown ----------
 
-static void
+void
 motor_phase_shutdown(void)
 {
     uint8_t oid;

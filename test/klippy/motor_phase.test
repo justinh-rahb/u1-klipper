@@ -1,0 +1,14 @@
+# Test case for motor_phase_calibrate module
+CONFIG motor_phase.cfg
+DICTIONARY atmega2560.dict
+
+# Report state (stored corrections parsed from config, no bench yet)
+MOTOR_PHASE_REPORT
+MOTOR_PHASE_REPORT AXIS=x
+
+# Disable is a no-op when not enabled
+MOTOR_PHASE_APPLY AXIS=x ENABLE=0
+
+# Clear stored correction
+MOTOR_PHASE_CLEAR AXIS=x
+MOTOR_PHASE_REPORT AXIS=x

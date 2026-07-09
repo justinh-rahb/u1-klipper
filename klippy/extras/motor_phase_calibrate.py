@@ -555,7 +555,7 @@ class MotorPhaseCalibrate:
             a.bench_ok = True
         return ok
 
-    # ---- measurement ----------------------------------------------------------
+    # ---- measurement --------------------------------------------------------
 
     def _measure_direction(self, a, direction, offset, accel_client_factory):
         """Run calibration moves in one direction; return averaged harmonics.
@@ -647,7 +647,7 @@ class MotorPhaseCalibrate:
         rev = self._measure_direction(a, 1, offset, accel_client_factory)
         return fwd, rev
 
-    # ---- G-code commands --------------------------------------------------------
+    # ---- G-code commands ----------------------------------------------------
 
     cmd_MOTOR_PHASE_BENCH_help = (
         "Measure MCU DIRECT_MODE update timing headroom")
@@ -843,7 +843,7 @@ class MotorPhaseCalibrate:
         gcmd.respond_info("Cleared stored correction for %s. Use"
                           " SAVE_CONFIG to persist." % (axis.upper(),))
 
-    # ---- helpers / status --------------------------------------------------------
+    # ---- helpers / status ---------------------------------------------------
 
     def _axis_by_stepper(self, stepper_name):
         for a in self.axes.values():

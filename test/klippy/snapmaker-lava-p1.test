@@ -6,3 +6,6 @@ CONFIG snapmaker-lava-p1.cfg
 T0
 T1
 T0
+
+# Motor phase correction module (UART TMC2240: runtime unavailable path)
+MOTOR_PHASE_REPORT
