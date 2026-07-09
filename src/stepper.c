@@ -339,6 +339,29 @@ stepper_stop(struct trsync_signal *tss, uint8_t reason)
     }
 }
 
+// Return the current position of a stepper by oid (for other modules).
+// Safe to call from task context; handles irq locking internally.
+uint32_t
+stepper_get_position_by_oid(uint8_t oid)
+{
+    struct stepper *s = stepper_oid_lookup(oid);
+    irq_disable();
+    uint32_t position = stepper_get_position(s);
+    irq_enable();
+    return position;
+}
+
+// Report whether a stepper currently has queued/executing steps.
+uint8_t
+stepper_is_active_by_oid(uint8_t oid)
+{
+    struct stepper *s = stepper_oid_lookup(oid);
+    irq_disable();
+    uint8_t active = s->count != 0 || !move_queue_empty(&s->mq);
+    irq_enable();
+    return active;
+}
+
 uint16_t get_all_stepper_info(void *buffer, uint16_t max_num, uint8_t is_pl_save) {
     struct stepper *s;
     uint8_t i;
