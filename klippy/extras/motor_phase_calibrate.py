@@ -177,6 +177,9 @@ def build_correction_lut(coeffs, lut_size, amplitude):
         delta = 0.
         for n, (mag, phase) in coeffs.items():
             delta += mag * math.sin(n * theta + phase)
+        # v1 uses nearest-code quantization.  Dither/error diffusion may be
+        # beneficial, but should be gated by accelerometer measurement and MCU
+        # update headroom (see docs/Motor_Phase_Calibration_Math.md).
         ia = int(round(amplitude * math.cos(theta + delta)))
         ib = int(round(amplitude * math.sin(theta + delta)))
         lut.append((max(-256, min(255, ia)), max(-256, min(255, ib))))

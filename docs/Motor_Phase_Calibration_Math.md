@@ -300,7 +300,60 @@ allowed.
 
 ---
 
-## 7. Practical Limits
+## 7. Quantization And Dither
+
+There are two separate accuracy limits:
+
+- The harmonic estimator is not 9-bit.  It uses host floating-point least
+  squares on accelerometer samples.
+- The actuator is discrete.  TMC2240 `DIRECT_MODE` accepts signed 9-bit
+  phase-current codes, and the runtime uses a finite LUT sampled at a finite
+  update rate.
+
+The final rounding step:
+
+$$
+cur_a, cur_b \in [-256, 255]
+$$
+
+introduces a deterministic current error:
+
+$$
+\epsilon_i =
+\begin{bmatrix}
+cur_a(i) \\
+cur_b(i)
+\end{bmatrix}
+-
+A
+\begin{bmatrix}
+\cos(\theta_i+\delta_i) \\
+\sin(\theta_i+\delta_i)
+\end{bmatrix}
+$$
+
+Because the error is periodic in LUT index, it can create its own narrow-band
+tones instead of behaving like broadband noise.  That is exactly the kind of
+artifact this feature is trying to avoid.
+
+Potential future mitigations:
+
+- Host-side LUT error diffusion: carry each entry's quantization residue into
+  nearby entries while preserving the average current vector.
+- MCU temporal dithering: keep fractional current accumulators and alternate
+  adjacent integer DAC codes so the time average approaches the desired value.
+- Sigma-delta style dithering: noise-shape quantization error above the
+  sensitive acoustic/mechanical band if the MCU has enough update headroom.
+- Measurement-gated dither: only keep a dither strategy if the accelerometer
+  shows lower harmonic energy after applying it.
+
+Those options are intentionally not in v1.  Dither consumes MCU time, increases
+SPI write pressure if it forces more frequent updates, and can trade one
+audible tone for another if it is not measured on the actual printer.
+
+---
+
+## 8. Practical Limits
 
 - TMC2240 `DIRECT_MODE` is required; UART TMC2208/2209-style drivers cannot
   use this runtime path.
@@ -315,7 +368,7 @@ allowed.
 
 ---
 
-## 8. References
+## 9. References
 
 1. Trinamic TMC2240 datasheet, section "Direct Mode" — `DIRECT_MODE` register
    layout and `GCONF.direct_mode`.
