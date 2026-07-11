@@ -50,6 +50,27 @@ class TestExtractHarmonics(unittest.TestCase):
         self.assertAlmostEqual(mag4, 0.8, delta=0.1)
         self.assertAlmostEqual(ph4, 1.9, delta=0.15)
 
+    def test_nonuniform_non_integer_window(self):
+        # Calibration samples come from the accelerometer during a trimmed
+        # cruise window, not from a perfect one-period DFT grid.  The helper
+        # should therefore fit the real basis functions directly.
+        rng = random.Random(7)
+        thetas = []
+        values = []
+        for i in range(1500):
+            base = 2. * math.pi * 5.37 * i / 1500
+            theta = base + rng.uniform(-0.0007, 0.0007)
+            thetas.append(theta)
+            values.append(1.7 * math.cos(2 * theta + 0.42)
+                          + 0.55 * math.cos(4 * theta - 2.1)
+                          + 0.02 * math.cos(theta)
+                          + 3.0)
+        result = mpc.extract_harmonics(thetas, values, [2, 4])
+        self.assertAlmostEqual(result[2][0], 1.7, delta=0.02)
+        self.assertAlmostEqual(result[2][1], 0.42, delta=0.02)
+        self.assertAlmostEqual(result[4][0], 0.55, delta=0.02)
+        self.assertAlmostEqual(result[4][1], -2.1, delta=0.02)
+
     def test_absent_harmonic_is_small(self):
         thetas = synth_thetas()
         values = [5.0 * math.cos(2 * t) for t in thetas]

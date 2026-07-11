@@ -6,10 +6,10 @@
 #
 # Direct Phase Current Control ("motor ANC")
 # ==========================================
-# Stepper motors emit vibration/noise at harmonics of their electrical
-# period (dominantly harmonics 2 and 4) due to cogging and winding
-# non-idealities.  This module measures those harmonics with the printer's
-# accelerometer, fits a periodic phase correction
+# Stepper motors emit vibration/noise when the commanded stator field, rotor
+# flux, and mechanical load produce periodic force/torque error.  This module
+# measures acceleration-error harmonics with the printer's accelerometer and
+# fits a small periodic tangential field-angle correction
 #
 #     delta(theta) = sum_n( mag_n * sin(n*theta + phase_n) )
 #
@@ -39,29 +39,78 @@ import math, logging
 # Pure DSP / LUT helpers (unit-testable, no Klipper dependencies)
 ######################################################################
 
+def _solve_linear_system(a, b):
+    """Solve Ax=b with partial-pivot Gauss-Jordan elimination."""
+    n = len(b)
+    if not n:
+        return []
+    a = [row[:] for row in a]
+    b = b[:]
+    for col in range(n):
+        pivot = max(range(col, n), key=lambda r: abs(a[r][col]))
+        if abs(a[pivot][col]) < 1e-18:
+            return [0.] * n
+        if pivot != col:
+            a[col], a[pivot] = a[pivot], a[col]
+            b[col], b[pivot] = b[pivot], b[col]
+        inv = 1. / a[col][col]
+        for j in range(col, n):
+            a[col][j] *= inv
+        b[col] *= inv
+        for r in range(n):
+            if r == col:
+                continue
+            f = a[r][col]
+            if not f:
+                continue
+            for j in range(col, n):
+                a[r][j] -= f * a[col][j]
+            b[r] -= f * b[col]
+    return b
+
 def extract_harmonics(thetas, values, harmonics):
-    """Correlate a signal sampled at electrical angles with harmonics.
+    """Fit real harmonic coefficients at electrical angles.
 
     Returns {n: (magnitude, phase)} such that
         values[i] ~= sum_n( magnitude_n * cos(n*thetas[i] + phase_n) )
-    plus broadband noise.  Uses direct correlation (matched filter), which
-    tolerates non-uniform sampling in theta.
+    plus DC and broadband noise.
+
+    This is a real least-squares fit over the basis
+        1, cos(n*theta), sin(n*theta)
+    rather than a raw DFT bin.  It produces the same result as a DFT for
+    uniform integer-period samples, but remains well-defined when the
+    accelerometer samples are slightly non-uniform or the cruise window does
+    not land exactly on an integer electrical-period boundary.
     """
-    result = {}
     m = len(values)
     if not m:
         return {n: (0., 0.) for n in harmonics}
-    mean = math.fsum(values) / m
-    for n in harmonics:
-        re = im = 0.
-        for theta, v in zip(thetas, values):
+    harmonics = list(harmonics)
+    cols = 1 + 2 * len(harmonics)
+    ata = [[0.] * cols for _ in range(cols)]
+    aty = [0.] * cols
+    for theta, v in zip(thetas, values):
+        row = [1.]
+        for n in harmonics:
             a = n * theta
-            vv = v - mean
-            re += vv * math.cos(a)
-            im -= vv * math.sin(a)
-        re = 2. * re / m
-        im = 2. * im / m
-        result[n] = (math.hypot(re, im), math.atan2(im, re))
+            row.append(math.cos(a))
+            row.append(math.sin(a))
+        for i, ri in enumerate(row):
+            aty[i] += ri * v
+            for j, rj in enumerate(row):
+                ata[i][j] += ri * rj
+    # Tiny ridge protects against degenerate windows without affecting the
+    # normal calibration case (many samples, two harmonics).
+    for i in range(cols):
+        ata[i][i] += max(1., ata[i][i]) * 1e-12
+    coeff = _solve_linear_system(ata, aty)
+    result = {}
+    for n in harmonics:
+        idx = 1 + 2 * harmonics.index(n)
+        c = coeff[idx]
+        s = coeff[idx + 1]
+        # c*cos(n*t) + s*sin(n*t) == mag*cos(n*t + phase)
+        result[n] = (math.hypot(c, s), math.atan2(-s, c))
     return result
 
 def accel_to_phase_coeffs(accel_harmonics, elec_freq, elec_wavelength):
@@ -71,6 +120,13 @@ def accel_to_phase_coeffs(accel_harmonics, elec_freq, elec_wavelength):
         electrical angle theta, cosine convention (see extract_harmonics).
     elec_freq: electrical rotations per second during the measurement.
     elec_wavelength: mm of axis travel per electrical period (4 full steps).
+
+    The real-domain model is:
+      Lorentz force / torque is proportional to the interaction of the
+      commanded stator current vector with rotor flux.  For small errors,
+      a tangential electrical-angle perturbation changes torque roughly
+      linearly, so the first-order correction can be represented as a small
+      phase shift delta(theta).
 
     An acceleration harmonic a(theta) = A*cos(n*theta + p) integrates to a
     position ripple x(theta) = -A/(n*w_e)^2 * cos(n*theta + p) with
@@ -90,7 +146,7 @@ def accel_to_phase_coeffs(accel_harmonics, elec_freq, elec_wavelength):
     return coeffs
 
 def combine_coeffs(coeff_list):
-    """Average correction coefficient sets (complex vector mean)."""
+    """Average correction coefficient sets by phase-aware vector mean."""
     if not coeff_list:
         return {}
     harmonics = set()
