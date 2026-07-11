@@ -103,7 +103,7 @@ with:
 
 $$
 A_n = \sqrt{c_n^2+s_n^2},\qquad
-p_n = \operatorname{atan2}(-s_n, c_n)
+p_n = \mathrm{atan2}(-s_n, c_n)
 $$
 
 No physical step in the model depends on a complex-valued motor.
@@ -272,11 +272,11 @@ $$
 $$
 
 $$
-cur_a(i) = \operatorname{round}(A\cos(\theta_i+\delta_i))
+cur_a(i) = \mathrm{round}(A\cos(\theta_i+\delta_i))
 $$
 
 $$
-cur_b(i) = \operatorname{round}(A\sin(\theta_i+\delta_i))
+cur_b(i) = \mathrm{round}(A\sin(\theta_i+\delta_i))
 $$
 
 The MCU runtime indexes this LUT from the stepper position:
