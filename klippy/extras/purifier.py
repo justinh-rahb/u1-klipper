@@ -1,4 +1,19 @@
-import logging, os, threading
+# Air purifier / chamber ventilation support
+#
+# Drives the purifier's exhaust and inner fans, tracks purifier presence via an
+# ADC power detect pin, records inner fan work time, and implements the chamber
+# thermal modes (cool / preheat / hot).
+#
+# Two control surfaces are exposed over the same underlying fans:
+#   * The purifier specific commands - SET_PURIFIER, GET_PURIFIER,
+#     SET_PURIFIER_MODE, WAIT_CHAMBER_TEMP - and the "control/purifier"
+#     webhook endpoint.
+#   * A stock [fan_generic] facade per fan, so SET_FAN_SPEED, the
+#     "control/generic_fan" endpoint and any UI enumerating "fan_generic <name>"
+#     printer objects drive the purifier fans unchanged.
+#
+# This file may be distributed under the terms of the GNU GPLv3 license.
+import logging, os
 from . import pulse_counter
 
 FAN_STATE_TURN_ON                                   = 0
@@ -34,6 +49,11 @@ PREHEAT_CHECK_TIMEOUT_INTERVAL                      = 180
 PREHEAT_MIN_VALID_RISE_TEMP                         = 0.0
 
 VALID_PURIFIER_FAN_TYPE = ['exhaust', 'inner']
+
+# Names used for the [fan_generic] facade objects unless overridden with the
+# exhaust_fan_name / inner_fan_name config options.
+DEFAULT_EXHAUST_FAN_GENERIC_NAME                    = 'exhaust_fan'
+DEFAULT_INNER_FAN_GENERIC_NAME                      = 'circulation_fan'
 
 PURIFIER_CONFIG_FILE = 'purifier.json'
 DEFAULT_PURIFIER_CONFIG = {
@@ -131,6 +151,87 @@ class PurifierFan:
             status_dict.update(self.tachometer.get_status(eventtime))
 
         return status_dict
+
+class PurifierFanAdapter:
+    # Duck-types extras/fan.py:Fan for callers that reach through a
+    # [fan_generic] object's .fan attribute - see fan.py get_all_fan_speed(),
+    # resume_all_fan_speed() and the M106/M107 extendable_fan handling.
+    def __init__(self, purifier_fan, set_speed_cb):
+        self._fan = purifier_fan
+        self._set_speed_cb = set_speed_cb
+
+    @property
+    def last_fan_value(self):
+        return self._fan.get_speed()
+
+    @property
+    def max_power(self):
+        return self._fan.get_max_power()
+
+    def get_mcu(self):
+        return self._fan.get_mcu()
+
+    def set_speed_from_command(self, value, control_enable=True):
+        # Always route through the Purifier rather than PurifierFan.set_speed()
+        # so the power enable pin, the delay-off timers and the inner fan work
+        # time accounting stay consistent with the purifier commands.
+        self._set_speed_cb(value)
+
+    def get_status(self, eventtime):
+        status = self._fan.get_status(eventtime)
+        # PurifierFan omits 'rpm' when it has no tachometer; fan_generic
+        # consumers expect the key to always be present.
+        return {
+            'speed': status.get('speed', 0.),
+            'rpm': status.get('rpm'),
+        }
+
+class PurifierGenericFan:
+    # Presents one purifier fan as a stock [fan_generic] printer object.
+    #
+    # SPEED is 0..1 and SPEED=0 stops the fan immediately, matching
+    # extras/fan_generic.py. The purifier's delay-off behaviour is reached
+    # through SET_PURIFIER FAN=... DELAY_OFF=... instead.
+    cmd_SET_FAN_SPEED_help = "Sets the speed of a fan"
+
+    def __init__(self, printer, fan_name, purifier_fan, set_speed_cb,
+                 is_available_cb):
+        self.printer = printer
+        self.fan_name = fan_name
+        self.fan = PurifierFanAdapter(purifier_fan, set_speed_cb)
+        self._is_available = is_available_cb
+
+        gcode = printer.lookup_object('gcode')
+        gcode.register_mux_command("SET_FAN_SPEED", "FAN", fan_name,
+                                   self.cmd_SET_FAN_SPEED,
+                                   desc=self.cmd_SET_FAN_SPEED_help)
+        wh = printer.lookup_object('webhooks')
+        wh.register_mux_endpoint("control/generic_fan", 'fan', fan_name,
+                                 self._handle_control_generic_fan)
+
+    def get_status(self, eventtime):
+        return self.fan.get_status(eventtime)
+
+    def cmd_SET_FAN_SPEED(self, gcmd):
+        speed = gcmd.get_float('SPEED', 0.)
+        if speed > 0 and not self._is_available():
+            raise gcmd.error("[purifier] purifier not exist!")
+        self.fan.set_speed_from_command(speed)
+
+    def _handle_control_generic_fan(self, web_request):
+        try:
+            speed = web_request.get_int('S', 0)
+            if speed > 100:
+                speed = 100
+            if speed < 0:
+                speed = 0
+            if speed > 0 and not self._is_available():
+                raise ValueError("[purifier] purifier not exist!")
+            self.fan.set_speed_from_command(speed / 100.0)
+            web_request.send({'state': 'success'})
+        except Exception as e:
+            logging.error(f'failed to set fan: {str(e)}')
+            web_request.send({'state': 'error', 'message': str(e)})
 
 class Purifier:
     def __init__(self, config):
@@ -300,6 +401,42 @@ class Purifier:
         self.printer.register_event_handler("pause_resume:cancel", self._handle_cancel_print_job)
         self.printer.register_event_handler('print_stats:stop', self._handle_stop_print_job)
         self.printer.register_event_handler('print_stats:start', self._handle_start_print_job)
+
+        # [fan_generic] facade over the same fans
+        self._register_generic_fans(config)
+
+    def _register_generic_fans(self, config):
+        # Publish each configured purifier fan as a "fan_generic <name>"
+        # printer object so the stock fan tooling can drive it.
+        self.generic_fan_names = {}
+        expose = config.getboolean('expose_fan_generic', True)
+
+        for fan_type, option, default_name, purifier_fan, set_speed_cb in [
+                ('exhaust', 'exhaust_fan_name',
+                 DEFAULT_EXHAUST_FAN_GENERIC_NAME,
+                 self._exhaust_fan, self.set_exhaust_fan_speed),
+                ('inner', 'inner_fan_name',
+                 DEFAULT_INNER_FAN_GENERIC_NAME,
+                 self._inner_fan, self.set_inner_fan_speed)]:
+            # Read the option unconditionally so that naming a fan that is not
+            # configured is not reported as an unused config option.
+            fan_name = config.get(option, default_name)
+            if not expose or purifier_fan is None:
+                continue
+
+            object_name = 'fan_generic %s' % (fan_name,)
+            if config.has_section(object_name):
+                raise config.error(
+                    "[purifier] %s '%s' collides with an existing [%s] config"
+                    " section" % (option, fan_name, object_name))
+            # add_object() raises a clear error if the name is already taken by
+            # a [fan_generic] section parsed earlier in the config.
+            self.printer.add_object(object_name, PurifierGenericFan(
+                self.printer, fan_name, purifier_fan, set_speed_cb,
+                lambda: self._power_detected))
+            self.generic_fan_names[fan_type] = fan_name
+            logging.info("[purifier] %s fan exposed as [%s]",
+                         fan_type, object_name)
 
     def _handle_ready(self):
         self.timer_execution_counter = 0
@@ -865,11 +1002,15 @@ class Purifier:
             status_dict['exhaust_fan'].update({'speed': exhaust_fan_status['speed']})
             status_dict['exhaust_fan'].update({'delay': self.config_info['exhaust_delay_time']})
             status_dict['exhaust_fan'].update({'speed_threshold': self.exhaust_fan_speed_threshold})
+            if 'exhaust' in self.generic_fan_names:
+                status_dict['exhaust_fan'].update({'fan_generic': self.generic_fan_names['exhaust']})
         if inner_fan_status is not None:
             status_dict.update({'inner_fan': {}})
             status_dict['inner_fan'].update({'speed': inner_fan_status['speed']})
             status_dict['inner_fan'].update({'delay': self.config_info['inner_delay_time']})
             status_dict['inner_fan'].update({'speed_threshold': self.inner_fan_speed_threshold})
+            if 'inner' in self.generic_fan_names:
+                status_dict['inner_fan'].update({'fan_generic': self.generic_fan_names['inner']})
 
         return status_dict
 
