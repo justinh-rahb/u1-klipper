@@ -299,6 +299,14 @@ def summarize_samples(samples, fields, swap_coils):
     return lines, warnings
 
 
+
+# Commands that home X/Y; phase stepping resumes after the outermost one
+HOMING_COMMANDS = (
+    "G28",
+    "HOMING_PRECISE_COREXY",
+    "HOMING_PRECISE_COREXY_ADVANCED",
+)
+
 class FlowControl:
     """Place queued entries on the MCU's tick grid.
 
@@ -418,6 +426,8 @@ class PhaseStepping:
         self.direct = False
         self._guard_driver_writes()
         self.resume_after_homing = False
+        # Nesting depth of the homing commands wrapped below
+        self.homing_depth = 0
         self.run = None
         for event, handler in (
             ("klippy:connect", self._handle_connect),
@@ -523,6 +533,8 @@ class PhaseStepping:
             toolhead.register_flush_callback(self._generate)
         for cmd in ("FORCE_MOVE", "STEPPER_BUZZ"):
             self._wrap_step_command(cmd)
+        for cmd in HOMING_COMMANDS:
+            self._wrap_homing_command(cmd)
         # The MCU's counters are shared by its phase steppers and a query
         # resets them, so one of them collects them for all
         peers = [
@@ -562,6 +574,40 @@ class PhaseStepping:
                     self._enable()
 
         gcode.register_command(cmd, run, **kwargs)
+
+    def _wrap_homing_command(self, cmd):
+        """Snapmaker's G28 ends with precise CoreXY homing, whose diagonal
+        probes are plain homing moves: homing:homing_move_begin turns phase
+        stepping off, but no homing:home_rails_end follows to turn it back
+        on. Resume once the outermost homing command has completed."""
+        gcode = self.gcode
+        handler = gcode.register_command(cmd, None)
+        if handler is None:
+            return
+        kwargs = {"desc": gcode.gcode_help.get(cmd)}
+        params = getattr(gcode, "gcode_params", {}).get(cmd)
+        if params is not None:
+            kwargs["params"] = params
+
+        def run(gcmd):
+            self.homing_depth += 1
+            try:
+                handler(gcmd)
+            finally:
+                self.homing_depth -= 1
+            # A failed homing raised above; Snapmaker's error path turns the
+            # motors off, which also drops the resume request.
+            if self.homing_depth == 0:
+                self._resume_after_homing()
+
+        gcode.register_command(cmd, run, **kwargs)
+
+    def _resume_after_homing(self):
+        if not self.resume_after_homing or self.active:
+            return
+        self.resume_after_homing = False
+        if self._motor_enabled():
+            self._enable()
 
     def _query(self):
         # The stats timer queries too, and two queries of one oid at once
@@ -959,9 +1005,12 @@ class PhaseStepping:
         # A stepper switched off for another rail's homing moves (both
         # CoreXY motors move when homing either axis) returns after it.
         homed_here = any(self.stepper in r.get_steppers() for r in rails)
-        if self.resume_after_homing or (self.auto_enable and homed_here):
-            self.resume_after_homing = False
-            self._enable()
+        if self.auto_enable and homed_here:
+            self.resume_after_homing = True
+        if self.homing_depth:
+            # More homing moves may follow inside the same command
+            return
+        self._resume_after_homing()
 
     def _handle_motor_off(self, print_time=None):
         self.resume_after_homing = False

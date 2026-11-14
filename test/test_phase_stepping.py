@@ -182,8 +182,12 @@ def _bare_phase_stepping(stepper, auto_enable):
     obj.auto_enable = auto_enable
     obj.active = False
     obj.resume_after_homing = False
+    obj.homing_depth = 0
+    obj.enables = 0
+    obj._motor_enabled = lambda: True
 
     def enable():
+        obj.enables += 1
         obj.active = True
 
     def disable(wait=True):
@@ -212,6 +216,111 @@ def test_corexy_homing_leaves_both_motors_phase_stepping(auto_enable):
         for m in motors:
             m._handle_home_rails_end(None, [rail])
     assert all(m.active for m in motors)
+
+
+class _HomingGcode:
+    """Registers handlers like gcode.register_command and runs them by
+    name, so wrappers from several objects stack as they do in klippy."""
+
+    def __init__(self, handlers):
+        self.handlers = dict(handlers)
+        self.gcode_help = {name: name.lower() for name in handlers}
+
+    def register_command(self, cmd, func, desc=None):
+        if func is None:
+            return self.handlers.pop(cmd, None)
+        self.handlers[cmd] = func
+        self.gcode_help[cmd] = desc
+
+    def run(self, cmd):
+        self.handlers[cmd](None)
+
+
+def _snapmaker_g28(motors, a, b, gcode, fail=False):
+    """Snapmaker's G28: X and Y through home_rails, then precise CoreXY
+    homing, whose diagonal probes are plain homing moves (no rails end)."""
+
+    def g28(gcmd):
+        for rail in (_Rail([a]), _Rail([b])):
+            for m in motors:
+                m._handle_homing_move_begin(_HomingMove([a, b]))
+            for m in motors:
+                m._handle_home_rails_end(None, [rail])
+            # Not switched back on between the homing steps of one command
+            assert not any(m.active for m in motors)
+        gcode.run("HOMING_PRECISE_COREXY_ADVANCED")
+        if fail:
+            raise RuntimeError("homing failed")
+
+    def precise_advanced(gcmd):
+        gcode.run("HOMING_PRECISE_COREXY")
+
+    def precise(gcmd):
+        for _ in range(4):
+            for m in motors:
+                m._handle_homing_move_begin(_HomingMove([a, b]))
+
+    return {
+        "G28": g28,
+        "HOMING_PRECISE_COREXY_ADVANCED": precise_advanced,
+        "HOMING_PRECISE_COREXY": precise,
+    }
+
+
+def _wrapped_motors(auto_enable, active, fail=False):
+    a, b = object(), object()
+    motors = [
+        _bare_phase_stepping(a, auto_enable),
+        _bare_phase_stepping(b, auto_enable),
+    ]
+    gcode = _HomingGcode({})
+    gcode.handlers.update(_snapmaker_g28(motors, a, b, gcode, fail))
+    gcode.gcode_help = {name: name.lower() for name in gcode.handlers}
+    for m in motors:
+        m.active = active
+        m.gcode = gcode
+        for cmd in ps.HOMING_COMMANDS:
+            m._wrap_homing_command(cmd)
+    return motors, gcode
+
+
+def test_snapmaker_g28_resumes_phase_stepping_once_at_the_end():
+    motors, gcode = _wrapped_motors(auto_enable=False, active=True)
+    for m in motors:
+        m.enables = 0
+    gcode.run("G28")
+    assert all(m.active for m in motors)
+    # Switched back on once, after the whole command
+    assert [m.enables for m in motors] == [1, 1]
+    assert gcode.gcode_help["G28"] == "g28"
+
+
+def test_snapmaker_g28_auto_enables_after_homing():
+    motors, gcode = _wrapped_motors(auto_enable=True, active=False)
+    gcode.run("G28")
+    assert all(m.active for m in motors)
+
+
+def test_standalone_precise_homing_resumes_phase_stepping():
+    motors, gcode = _wrapped_motors(auto_enable=False, active=True)
+    gcode.run("HOMING_PRECISE_COREXY")
+    assert all(m.active for m in motors)
+
+
+def test_failed_homing_leaves_phase_stepping_off():
+    motors, gcode = _wrapped_motors(auto_enable=False, active=True, fail=True)
+    with pytest.raises(RuntimeError):
+        gcode.run("G28")
+    assert not any(m.active for m in motors)
+    assert all(m.homing_depth == 0 for m in motors)
+
+
+def test_homing_with_motors_off_does_not_resume():
+    motors, gcode = _wrapped_motors(auto_enable=False, active=True)
+    for m in motors:
+        m._motor_enabled = lambda: False
+    gcode.run("G28")
+    assert not any(m.active for m in motors)
 
 
 def test_hold_settings_mirror_the_driver_standstill_reduction():
