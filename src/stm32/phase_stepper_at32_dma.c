@@ -4,8 +4,8 @@
 // spi_transfer() from the scheduler timer, which runs with irqs disabled.
 // Five bytes at the TMC SPI rate take ~10us, longer than one byte time on
 // the 921600 baud host link, so the USART lost bytes while phase stepping.
-// Here the update only starts a DMA transfer; the next tick releases the
-// chip select once it has finished.
+// Here the update only starts DMA transfers, one per bus, and the next
+// tick releases the chip selects once they have finished.
 //
 // The AT32F403A DMA channels are register compatible with the stm32f1.
 // SPI4 has no fixed stm32f1 request line, so the controller's flexible
@@ -48,8 +48,6 @@ static const struct dma_map dma_maps[] = {
 #endif
     { SPI4, DMA1_Channel4, 4, 0x10 }, // spi4_tx
 };
-
-static const struct dma_map *active;
 
 static const struct dma_map *
 lookup_map(SPI_TypeDef *spi)
@@ -121,17 +119,14 @@ phase_board_xfer_start(struct spi_config *config, uint8_t *data
     chan->CMAR = (uint32_t)data;
     chan->CNDTR = len;
     chan->CCR |= DMA_CCR_EN;
-    active = m;
     // TXE is set, so enabling the request starts the transfer
     m->spi->CR2 |= SPI_CR2_TXDMAEN;
 }
 
 int
-phase_board_xfer_done(void)
+phase_board_xfer_done(struct spi_config *config)
 {
-    const struct dma_map *m = active;
-    if (!m)
-        return 1;
+    const struct dma_map *m = lookup_map(config->spi);
     if (m->chan->CNDTR)
         return 0;
     // The last byte leaves the shift register after the DMA count is zero
@@ -139,11 +134,9 @@ phase_board_xfer_done(void)
 }
 
 void
-phase_board_xfer_finish(void)
+phase_board_xfer_finish(struct spi_config *config)
 {
-    const struct dma_map *m = active;
-    if (!m)
-        return;
+    const struct dma_map *m = lookup_map(config->spi);
     m->spi->CR2 &= ~SPI_CR2_TXDMAEN;
     m->chan->CCR &= ~DMA_CCR_EN;
     clear_flags(m);
@@ -152,19 +145,24 @@ phase_board_xfer_finish(void)
     while (m->spi->SR & SPI_SR_RXNE)
         (void)m->spi->DR;
     (void)m->spi->SR;
-    active = NULL;
 }
 
 void
-phase_board_xfer_abort(void)
+phase_board_xfer_abort(struct spi_config *config)
 {
-    const struct dma_map *m = active;
-    if (!m)
-        return;
+    const struct dma_map *m = lookup_map(config->spi);
     m->chan->CCR &= ~DMA_CCR_EN;
     // Let any byte already in the shift register finish before release
     uint32_t i;
     for (i = 0; i < 1000 && (m->spi->SR & SPI_SR_BSY); i++)
         ;
-    phase_board_xfer_finish();
+    phase_board_xfer_finish(config);
+}
+
+// Each bus has its own DMA channel, so transfers on different buses run
+// at the same time.
+uint32_t
+phase_board_xfer_bus(struct spi_config *config)
+{
+    return (uint32_t)config->spi;
 }
