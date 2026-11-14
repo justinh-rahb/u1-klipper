@@ -13,9 +13,11 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, ROOT)
 import chelper  # noqa: E402
 from extras import (  # noqa: E402
+    bus,
     phase_stepping,
     shaper_defs,
     tmc,
+    tmc2130,
     tmc5160,
     tmc2240,
 )
@@ -138,15 +140,13 @@ class FakeMutex:
 class FakeTMCSPI:
     chain_len = 1
 
-    def __init__(self):
+    def __init__(self, mcu):
         self.mutex = FakeMutex()
-
-    class spi:
-        config_fmt_ticks = None
-
-        @staticmethod
-        def get_oid():
-            return 1
+        # Exercise the stock transport's real public API, not a driver-only
+        # get_mcu convenience method that does not exist on the U1.
+        self.spi = bus.MCU_SPI.__new__(bus.MCU_SPI)
+        self.spi.mcu = mcu
+        self.spi.oid = 1
 
     def reg_write(self, reg, val, chain_pos, print_time=None):
         assert self.mutex.held, "SPI transfer without the driver's mutex"
@@ -160,7 +160,7 @@ class FakeMCUTMC:
             driver.Fields, driver.SignedFields, driver.FieldFormatters
         )
         self.name_to_reg = driver.Registers
-        self.tmc_spi = FakeTMCSPI()
+        self.tmc_spi = FakeTMCSPI(mcu)
         self.mutex = self.tmc_spi.mutex
         self.chain_pos = 1
         self.mcu = mcu
@@ -178,9 +178,6 @@ class FakeMCUTMC:
 
     def get_fields(self):
         return self.fields
-
-    def get_mcu(self):
-        return self.mcu
 
     def get_register(self, name):
         return self.regs.get(name, 0)
@@ -501,3 +498,22 @@ def test_flow_control_holds_entries_back():
     placed = [flow.place(c, w) for c, w in ((0, 120), (10, 0), (5, 0), (2, 0))]
     assert [p[0] for p in placed] == [120, 120, 130, 135]
     assert [p[1] for p in placed] == [None, None, None, 120]
+
+
+def test_constructor_uses_stock_spi_transport_mcu_api():
+    reactor = Reactor()
+    mcu = FakeMCU(reactor, 10000)
+    seed = FakeMCUTMC(mcu, tmc2240)
+    driver = tmc2130.MCU_TMC_SPI.__new__(tmc2130.MCU_TMC_SPI)
+    driver.driver = tmc2240
+    driver.fields = seed.fields
+    driver.name_to_reg = seed.name_to_reg
+    driver.tmc_spi = seed.tmc_spi
+    driver.mutex = seed.mutex
+    driver.chain_pos = 1
+    assert not hasattr(driver, 'get_mcu')
+    printer = Printer(driver, Toolhead(None), reactor)
+    ps = phase_stepping.PhaseStepping(Config(printer))
+    assert ps.mcu is mcu
+    ps._build_config()
+    assert ps.tick_freq == 10000

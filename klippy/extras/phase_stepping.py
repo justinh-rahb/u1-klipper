@@ -387,7 +387,9 @@ class PhaseStepping:
         self.direct_reg_name = direct_regs[0]
         self.direct_reg = self.mcu_tmc.name_to_reg[self.direct_reg_name]
         self.tmc_section = tmc_section
-        self.mcu = self.mcu_tmc.get_mcu()
+        # Stock U1's MCU_TMC_SPI wrapper has no get_mcu(); its SPI transport
+        # exposes this API on both stock Klipper and Kalico.
+        self.mcu = tmc_spi.spi.get_mcu()
         self.oid = self.mcu.create_oid()
         self.cmd_queue = self.mcu.alloc_command_queue()
         self.tick_freq = None
