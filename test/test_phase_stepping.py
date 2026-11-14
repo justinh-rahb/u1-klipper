@@ -342,13 +342,14 @@ def test_stats_report_lead_and_mcu_counters():
         "replays": 0,
         "max_cycles": 3,
         "avg_cycles": 1,
+        "rx_overruns": 4,
     }
     active, msg = obj.stats(0.0)
     assert active
     assert msg == (
         "phase_stepping_stepper_x: lead_min=0.231 generate_max=0.0042"
         " lost_ticks=2 locked_ticks=7 replays=0 update_max_us=3.0"
-        " update_avg_us=1.0"
+        " update_avg_us=1.0 rx_overruns=4"
     )
     # Each interval starts over
     assert obj.stats(0.0)[1] == (

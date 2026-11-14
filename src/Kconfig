@@ -190,6 +190,9 @@ config WANT_PHASE_STEPPING
 config PHASE_STEPPING_POLL
     bool
     default y if WANT_PHASE_STEPPING
+config PHASE_STEPPING_AT32_DMA
+    bool
+    default y if WANT_PHASE_STEPPING && MACH_AT32F403A
 config PHASE_STEPPING_FREQ
     int
     default 10000 if WANT_PHASE_STEPPING

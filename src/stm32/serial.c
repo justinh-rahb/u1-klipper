@@ -59,10 +59,15 @@
 #define CR1_FLAGS (USART_CR1_UE | USART_CR1_RE | USART_CR1_TE   \
                    | USART_CR1_RXNEIE)
 
+// Received bytes lost because the previous one was not read in time
+uint32_t serial_rx_overruns;
+
 void
 USARTx_IRQHandler(void)
 {
     uint32_t sr = USARTx->SR;
+    if (sr & USART_SR_ORE)
+        serial_rx_overruns++;
     if (sr & (USART_SR_RXNE | USART_SR_ORE)) {
         // The ORE flag is automatically cleared by reading SR, followed
         // by reading DR.

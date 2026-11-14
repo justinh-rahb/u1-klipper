@@ -56,6 +56,7 @@ src-$(CONFIG_MACH_AT32F415) += ../lib/at32f415/hal/src/at32f415_crm.c ../lib/stm
 src-$(CONFIG_MACH_AT32F415) += ../lib/at32f415/hal/src/at32f415_tmr.c ../lib/at32f415/hal/src/at32f415_flash.c
 src-$(CONFIG_MACH_AT32F403A) += ../lib/stm32f1/system_stm32f1xx.c ../lib/at32f403a/at32f403a_407_clock.c
 src-$(CONFIG_MACH_AT32F403A) += stm32/adc.c stm32/at32f403a.c
+src-$(CONFIG_PHASE_STEPPING_AT32_DMA) += stm32/phase_stepper_at32_dma.c
 src-$(CONFIG_MACH_AT32F403A) += ../lib/at32f403a/hal/src/at32f403a_407_crm.c ../lib/at32f403a/hal/src/at32f403a_407_tmr.c
 src-$(CONFIG_MACH_AT32F403A) += ../lib/at32f403a/hal/src/at32f403a_407_gpio.c ../lib/at32f403a/hal/src/at32f403a_407_flash.c
 src-$(CONFIG_MACH_AT32F403A) += ../lib/at32f403a/hal/src/at32f403a_407_usart.c

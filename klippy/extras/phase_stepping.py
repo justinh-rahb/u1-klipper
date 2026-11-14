@@ -504,7 +504,7 @@ class PhaseStepping:
             "phase_stepper_query oid=%c",
             "phase_stepper_state oid=%c phase=%u flags=%c pending=%c"
             " ticks=%u lost_ticks=%u locked_ticks=%u replays=%u xfers=%u"
-            " max_cycles=%u avg_cycles=%u tick_clock=%u",
+            " max_cycles=%u avg_cycles=%u tick_clock=%u rx_overruns=%u",
             oid=self.oid,
             cq=cq,
         )
@@ -589,13 +589,14 @@ class PhaseStepping:
             cycle_us = 1000000.0 / self.mcu.get_constants()["CLOCK_FREQ"]
             msg += (
                 " lost_ticks=%d locked_ticks=%d replays=%d"
-                " update_max_us=%.1f update_avg_us=%.1f"
+                " update_max_us=%.1f update_avg_us=%.1f rx_overruns=%d"
                 % (
                     state["lost_ticks"],
                     state["locked_ticks"],
                     state["replays"],
                     state["max_cycles"] * cycle_us,
                     state["avg_cycles"] * cycle_us,
+                    state.get("rx_overruns", 0),
                 )
             )
         return True, msg
@@ -1220,6 +1221,8 @@ class PhaseStepping:
                 state["replays"],
             ),
             "Coil writes: %d, amplitude %d" % (state["xfers"], amplitude),
+            "Host link: %d received bytes lost on the MCU"
+            % (state.get("rx_overruns", 0),),
         ]
         lines, warnings = summarize_samples(
             samples, mcu_tmc.get_fields(), self.swap_coils

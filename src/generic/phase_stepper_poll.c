@@ -40,6 +40,8 @@ phase_board_timer_stop(void)
     sched_del_timer(&update_timer);
 }
 
+#if !CONFIG_PHASE_STEPPING_AT32_DMA
+// Blocking transfers, used where no DMA backend exists
 void
 phase_board_xfer_setup(struct spi_config *config)
 {
@@ -67,3 +69,4 @@ void
 phase_board_xfer_abort(void)
 {
 }
+#endif

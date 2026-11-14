@@ -611,6 +611,11 @@ command_phase_stepper_stop(uint32_t *args)
 }
 DECL_COMMAND(command_phase_stepper_stop, "phase_stepper_stop oid=%c");
 
+// Counted by the serial driver, where it has one. Reported with the phase
+// statistics because updates run with irqs off and can delay the USART.
+extern uint32_t serial_rx_overruns __attribute__((weak));
+static uint32_t reported_rx_overruns;
+
 void
 command_phase_stepper_query(uint32_t *args)
 {
@@ -625,13 +630,16 @@ command_phase_stepper_query(uint32_t *args)
     uint32_t xfers = stats.xfers, replays = stats.replays;
     uint64_t total_cycles = stats.total_cycles;
     memset(&stats, 0, sizeof(stats));
+    uint32_t overruns = &serial_rx_overruns ? serial_rx_overruns : 0;
+    uint32_t rx_overruns = overruns - reported_rx_overruns;
+    reported_rx_overruns = overruns;
     irq_enable();
     uint32_t avg_cycles = ticks ? total_cycles / ticks : 0;
     sendf("phase_stepper_state oid=%c phase=%u flags=%c pending=%c ticks=%u"
           " lost_ticks=%u locked_ticks=%u replays=%u xfers=%u"
-          " max_cycles=%u avg_cycles=%u tick_clock=%u", oid, phase, flags
-          , pending, ticks, lost, locked, replays, xfers, max_cycles
-          , avg_cycles, tick_clock);
+          " max_cycles=%u avg_cycles=%u tick_clock=%u rx_overruns=%u"
+          , oid, phase, flags, pending, ticks, lost, locked, replays, xfers
+          , max_cycles, avg_cycles, tick_clock, rx_overruns);
 }
 DECL_COMMAND(command_phase_stepper_query, "phase_stepper_query oid=%c");
 
