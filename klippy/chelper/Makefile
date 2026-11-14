@@ -6,7 +6,7 @@ SRCS          := pyhelper.o serialqueue.o stepcompress.o itersolve.o trapq.o \
                 pollreactor.o msgblock.o trdispatch.o \
                 kin_cartesian.o kin_corexy.o kin_corexz.o kin_delta.o \
                 kin_deltesian.o kin_polar.o kin_rotary_delta.o kin_winch.o \
-                kin_extruder.o kin_shaper.o kin_idex.o
+                kin_extruder.o kin_shaper.o kin_idex.o phasegen.o
 H_FILES       := *.h
 
 CFLAGS        = -Wall -g -O2 -shared -fPIC -flto -fwhole-program -fno-use-linker-plugin

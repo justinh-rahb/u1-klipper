@@ -292,6 +292,7 @@ class ToolHead:
         self.trapq_append = ffi_lib.trapq_append
         self.trapq_finalize_moves = ffi_lib.trapq_finalize_moves
         self.step_generators = []
+        self.flush_callbacks = []
         # Create kinematics class
         gcode = self.printer.lookup_object('gcode')
         self.Coord = gcode.Coord
@@ -351,6 +352,8 @@ class ToolHead:
         sg_flush_time = max(sg_flush_want, flush_time)
         for sg in self.step_generators:
             sg(sg_flush_time)
+        for cb in self.flush_callbacks:
+            cb(flush_time, sg_flush_time)
         self.min_restart_time = max(self.min_restart_time, sg_flush_time)
         # Free trapq entries that are no longer needed
         clear_history_time = self.clear_history_time
@@ -661,6 +664,8 @@ class ToolHead:
         return self.kin
     def get_trapq(self):
         return self.trapq
+    def register_flush_callback(self, handler):
+        self.flush_callbacks.append(handler)
     def register_step_generator(self, handler):
         self.step_generators.append(handler)
     def note_step_generation_scan_time(self, delay, old_delay=0.):

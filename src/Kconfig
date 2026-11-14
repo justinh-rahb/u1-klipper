@@ -108,6 +108,12 @@ config WANT_LIS2DW
     bool
     depends on HAVE_GPIO_SPI
     default y
+config WANT_SC7A20
+    # Snapmaker's presets/Makefile use this symbol but omit its definition.
+    # Keep the stock sensor commands when regenerating the configuration.
+    bool
+    depends on HAVE_GPIO_SPI
+    default y
 config WANT_LDC1612
     bool
     depends on HAVE_GPIO_I2C
@@ -122,7 +128,7 @@ config WANT_SOFTWARE_SPI
     default y
 config NEED_SENSOR_BULK
     bool
-    depends on WANT_SENSORS || WANT_LIS2DW || WANT_LDC1612
+    depends on WANT_SENSORS || WANT_LIS2DW || WANT_SC7A20 || WANT_LDC1612
     default y
 menu "Optional features (to reduce code size)"
     depends on HAVE_LIMITED_CODE_SIZE
@@ -137,6 +143,9 @@ config WANT_SENSORS
     depends on HAVE_GPIO_I2C || HAVE_GPIO_SPI
 config WANT_LIS2DW
     bool "Support lis2dw 3-axis accelerometer"
+    depends on HAVE_GPIO_SPI
+config WANT_SC7A20
+    bool "Support sc7a20 3-axis accelerometer"
     depends on HAVE_GPIO_SPI
 config WANT_LDC1612
     bool "Support ldc1612 eddy current sensor"
@@ -171,6 +180,20 @@ config INITIAL_PINS
         during the micro-controller startup sequence. By default the
         pins will be set to output high - preface a pin with a '!'
         character to set that pin to output low.
+
+# Experimental U1 phase stepping uses the portable scheduler/SPI backend.
+# The AT32F403A has no validated timer/DMA backend yet.
+config WANT_PHASE_STEPPING
+    bool "Phase stepping support (experimental, U1 10kHz)"
+    depends on LOW_LEVEL_OPTIONS && HAVE_GPIO_SPI && MACH_AT32F403A
+    default n
+config PHASE_STEPPING_POLL
+    bool
+    default y if WANT_PHASE_STEPPING
+config PHASE_STEPPING_FREQ
+    int
+    default 10000 if WANT_PHASE_STEPPING
+    default 0
 
 # The HAVE_x options allow boards to disable support for some commands
 # if the hardware does not support the feature.

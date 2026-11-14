@@ -21,12 +21,12 @@ SOURCE_FILES = [
     'pollreactor.c', 'msgblock.c', 'trdispatch.c',
     'kin_cartesian.c', 'kin_corexy.c', 'kin_corexz.c', 'kin_delta.c',
     'kin_deltesian.c', 'kin_polar.c', 'kin_rotary_delta.c', 'kin_winch.c',
-    'kin_extruder.c', 'kin_shaper.c', 'kin_idex.c',
+    'kin_extruder.c', 'kin_shaper.c', 'kin_idex.c', 'phasegen.c',
 ]
 DEST_LIB = "c_helper.so"
 OTHER_FILES = [
     'list.h', 'serialqueue.h', 'stepcompress.h', 'itersolve.h', 'pyhelper.h',
-    'trapq.h', 'pollreactor.h', 'msgblock.h'
+    'trapq.h', 'pollreactor.h', 'msgblock.h', 'phasegen.h'
 ]
 
 defs_stepcompress = """
@@ -165,6 +165,26 @@ defs_kin_idex = """
     struct stepper_kinematics * dual_carriage_alloc(void);
 """
 
+defs_phasegen = """
+    struct phasegen_seg {
+        uint32_t count;
+        int32_t start_vel, half_accel;
+        int64_t wait_tick;
+    };
+    struct phasegen *phasegen_alloc(void);
+    void phasegen_free(struct phasegen *pg);
+    void phasegen_setup(struct phasegen *pg, struct stepper_kinematics *sk
+        , double tick_time, double phase_per_mm, double tolerance);
+    void phasegen_start(struct phasegen *pg, double grid_time
+        , int64_t start_tick, int64_t start_phase, double ref_pos);
+    int32_t phasegen_generate(struct phasegen *pg, double flush_time
+        , struct phasegen_seg *out, int32_t max_out);
+    void phasegen_rebase(struct phasegen *pg, double ref_pos);
+    double phasegen_target(struct phasegen *pg, int64_t tick);
+    int64_t phasegen_get_phase(struct phasegen *pg);
+    int64_t phasegen_get_last_tick(struct phasegen *pg);
+"""
+
 defs_serialqueue = """
     #define MESSAGE_MAX 64
     struct pull_queue_message {
@@ -224,7 +244,7 @@ defs_all = [
     defs_itersolve, defs_trapq, defs_trdispatch,
     defs_kin_cartesian, defs_kin_corexy, defs_kin_corexz, defs_kin_delta,
     defs_kin_deltesian, defs_kin_polar, defs_kin_rotary_delta, defs_kin_winch,
-    defs_kin_extruder, defs_kin_shaper, defs_kin_idex,
+    defs_kin_extruder, defs_kin_shaper, defs_kin_idex, defs_phasegen,
 ]
 
 # Update filenames to an absolute path
