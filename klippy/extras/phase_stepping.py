@@ -428,6 +428,8 @@ class PhaseStepping:
         self.resume_after_homing = False
         # Nesting depth of the homing commands wrapped below
         self.homing_depth = 0
+        # A resume is queued for when the current gcode command ends
+        self.resume_scheduled = False
         self.run = None
         for event, handler in (
             ("klippy:connect", self._handle_connect),
@@ -601,6 +603,33 @@ class PhaseStepping:
                 self._resume_after_homing()
 
         gcode.register_command(cmd, run, **kwargs)
+
+    def _schedule_resume(self):
+        """Probing makes plain homing moves too: the U1's inductance probe
+        registers the X/Y motors, so BED_MESH_CALIBRATE and Snapmaker's bed
+        and nozzle probes turn phase stepping off outside any homing
+        command. Resume once the gcode command that probed has finished,
+        which is when the gcode mutex is next free."""
+        if self.resume_scheduled:
+            return
+        self.resume_scheduled = True
+        self.printer.get_reactor().register_callback(
+            self._resume_after_command
+        )
+
+    def _resume_after_command(self, eventtime):
+        with self.gcode.get_mutex():
+            self.resume_scheduled = False
+            # A homing command resumes by itself when it finishes
+            if self.homing_depth or self.printer.is_shutdown():
+                return
+            try:
+                self._resume_after_homing()
+            except self.printer.command_error as e:
+                self.gcode.respond_info(
+                    "Phase stepping on %s not resumed: %s"
+                    % (self.stepper_name, e)
+                )
 
     def _resume_after_homing(self):
         if not self.resume_after_homing or self.active:
@@ -997,6 +1026,8 @@ class PhaseStepping:
             if self.stepper in mcu_endstop.get_steppers():
                 self._report_disagreement(self._disable())
                 self.resume_after_homing = True
+                if not self.homing_depth:
+                    self._schedule_resume()
                 return
 
     def _handle_home_rails_end(self, homing_state, rails):

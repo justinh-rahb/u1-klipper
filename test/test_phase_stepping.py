@@ -183,6 +183,8 @@ def _bare_phase_stepping(stepper, auto_enable):
     obj.active = False
     obj.resume_after_homing = False
     obj.homing_depth = 0
+    obj.resume_scheduled = False
+    obj.printer = _ProbePrinter()
     obj.enables = 0
     obj._motor_enabled = lambda: True
 
@@ -321,6 +323,144 @@ def test_homing_with_motors_off_does_not_resume():
         m._motor_enabled = lambda: False
     gcode.run("G28")
     assert not any(m.active for m in motors)
+
+
+class _Reactor:
+    def __init__(self):
+        self.callbacks = []
+
+    def register_callback(self, callback):
+        self.callbacks.append(callback)
+
+    def run_callbacks(self):
+        callbacks, self.callbacks = self.callbacks, []
+        for callback in callbacks:
+            callback(0.0)
+
+
+class _ProbePrinter:
+    command_error = RuntimeError
+
+    def __init__(self):
+        self.reactor = _Reactor()
+        self.shutdown = False
+
+    def get_reactor(self):
+        return self.reactor
+
+    def is_shutdown(self):
+        return self.shutdown
+
+
+class _MutexGcode(_HomingGcode):
+    def __init__(self, handlers):
+        super().__init__(handlers)
+        self.mutex_holds = 0
+        self.messages = []
+
+    def get_mutex(self):
+        gcode = self
+
+        class _Mutex:
+            def __enter__(self):
+                gcode.mutex_holds += 1
+
+            def __exit__(self, *exc):
+                return False
+
+        return _Mutex()
+
+    def respond_info(self, msg):
+        self.messages.append(msg)
+
+
+def _probing_motors(active=True):
+    """Both CoreXY motors with Snapmaker's G28 wrapped, plus a probing
+    command whose probes are homing moves that include the X/Y motors."""
+    motors, _ = _wrapped_motors(auto_enable=True, active=active)
+    a, b = motors[0].stepper, motors[1].stepper
+    printer = _ProbePrinter()
+    gcode = _MutexGcode({})
+    gcode.handlers.update(_snapmaker_g28(motors, a, b, gcode))
+
+    def bed_mesh(gcmd):
+        for _ in range(9):
+            for m in motors:
+                m._handle_homing_move_begin(_HomingMove([a, b]))
+
+    gcode.handlers["BED_MESH_CALIBRATE"] = bed_mesh
+    gcode.gcode_help = {name: name.lower() for name in gcode.handlers}
+    for m in motors:
+        m.printer = printer
+        m.gcode = gcode
+        m.stepper_name = "stepper"
+        m.resume_scheduled = False
+        m.enables = 0
+        for cmd in ps.HOMING_COMMANDS:
+            m._wrap_homing_command(cmd)
+    return motors, gcode, printer
+
+
+def test_probing_resumes_phase_stepping_after_the_command():
+    motors, gcode, printer = _probing_motors()
+    gcode.run("BED_MESH_CALIBRATE")
+    # Off for the whole probing command, resumed once it has finished
+    assert not any(m.active for m in motors)
+    assert len(printer.reactor.callbacks) == 2
+    printer.reactor.run_callbacks()
+    assert all(m.active for m in motors)
+    assert [m.enables for m in motors] == [1, 1]
+    # The resume waited for the gcode mutex
+    assert gcode.mutex_holds == 2
+
+
+def test_probing_with_motors_off_does_not_resume():
+    motors, gcode, printer = _probing_motors()
+    gcode.run("BED_MESH_CALIBRATE")
+    for m in motors:
+        m._handle_motor_off()
+    printer.reactor.run_callbacks()
+    assert not any(m.active for m in motors)
+
+
+def test_probing_resume_skipped_after_shutdown():
+    motors, gcode, printer = _probing_motors()
+    gcode.run("BED_MESH_CALIBRATE")
+    printer.shutdown = True
+    printer.reactor.run_callbacks()
+    assert not any(m.active for m in motors)
+
+
+def test_probing_resume_failure_is_reported_not_raised():
+    motors, gcode, printer = _probing_motors()
+    gcode.run("BED_MESH_CALIBRATE")
+
+    def fail():
+        raise RuntimeError("driver not ready")
+
+    motors[0]._enable = fail
+    printer.reactor.run_callbacks()
+    assert motors[1].active
+    assert gcode.messages == [
+        "Phase stepping on stepper not resumed: driver not ready"
+    ]
+
+
+def test_homing_command_does_not_schedule_a_probe_resume():
+    motors, gcode, printer = _probing_motors()
+    gcode.run("G28")
+    assert all(m.active for m in motors)
+    assert printer.reactor.callbacks == []
+
+
+def test_snapmaker_print_start_ends_with_phase_stepping_on():
+    # Phase stepping off before the print; G28, then bed probing
+    motors, gcode, printer = _probing_motors(active=False)
+    gcode.run("G28")
+    assert all(m.active for m in motors)
+    gcode.run("BED_MESH_CALIBRATE")
+    printer.reactor.run_callbacks()
+    assert all(m.active for m in motors)
 
 
 def test_hold_settings_mirror_the_driver_standstill_reduction():
