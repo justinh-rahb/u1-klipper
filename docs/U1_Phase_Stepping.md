@@ -12,10 +12,14 @@ private MCU revision `3ebf909a`.
 
 The stock U1 config uses TMC2240 on hardware SPI: X uses SPI2/PB12 CS;
 Y uses SPI4/PE12 CS. Z and extruder UART drivers are not phase-stepping targets.
-The AT32F403A mainboard uses Hannott's generic scheduler/blocking-SPI backend
-at **10,000 updates/second**. No STM32F4 timer/DMA register code is used on AT32.
-The 40 kHz backend still needs a dedicated AT32 port and hardware validation;
-the 10 kHz backend is a first bring-up path, not evidence of full-speed quality.
+The AT32F403A mainboard runs the coil updates from the scheduler and sends
+them by DMA SPI (`CONFIG_PHASE_STEPPING_AT32_DMA`) at **20,000 updates/second**
+(`CONFIG_PHASE_STEPPING_FREQ`; 10,000 before this default changed). At 20 kHz
+an update of both motors takes under 5 us of each 50 us tick, timer irqs-off
+stretches stay at about 6 us (one host serial byte is 10.85 us), and the host
+stays the same distance ahead as at 10 kHz. Motor vibration measured from 20 to
+160 mm/s was the same at both rates. No STM32F4 timer/DMA register code is used
+on AT32.
 
 ## Port changes
 
