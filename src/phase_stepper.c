@@ -322,9 +322,23 @@ phase_stepper_spi_acquire(struct spidev_s *spi, uint8_t receive_data
                           , uint8_t data_len, uint8_t *data)
 {
     if (timer_running) {
-        // May run from shutdown handlers, which run with irqs disabled
+        // May run from shutdown handlers, which run with irqs disabled.
+        // Lock out the timer first, then wait for any coil write still in
+        // flight with irqs on: a full write takes about a serial byte time
+        // (~11us at 921600 baud), and holding irqs off that long lets the
+        // AT32 host UART deliver a byte twice and lose the next one.
         irqstatus_t flag = irq_save();
         task_spi_active = 1;
+        irq_restore(flag);
+        uint32_t end = timer_read_time() + timer_from_us(100), i;
+        for (i = 0; i < stepper_count; i++) {
+            struct phase_stepper *s = steppers[i];
+            while (s->xfer_active && !phase_board_xfer_done(&s->config))
+                if (timer_is_before(end, timer_read_time()))
+                    shutdown("Phase stepper SPI transfer timeout");
+        }
+        // The transfers are done, so finishing them is quick
+        flag = irq_save();
         xfer_finish_all();
         irq_restore(flag);
     }
