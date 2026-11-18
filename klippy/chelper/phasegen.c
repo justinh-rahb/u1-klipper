@@ -207,9 +207,15 @@ next_motion_time(struct stepper_kinematics *sk, double t, double end)
     trapq_check_sentinels(sk->tq);
     double pre = sk->gen_steps_pre_active, post = sk->gen_steps_post_active;
     struct move *m = list_first_entry(&sk->tq->moves, struct move, node);
+    struct move *tail = list_last_entry(&sk->tq->moves, struct move, node);
     while (m->print_time + m->move_t + post < t)
         m = list_next_entry(m, node);
     for (;;) {
+        // The tail sentinel starts where the last move ends, which can be
+        // before end. Nothing after it drives the stepper, and stepping
+        // past it would walk the list head as a move and wrap around.
+        if (m == tail)
+            return end;
         double start = m->print_time - pre;
         if (start >= end)
             return end;

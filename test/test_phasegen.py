@@ -221,3 +221,49 @@ def test_long_rest_is_skipped():
         if abs(ffi_lib.phasegen_target(pg, tick) - rest_phase) > TOLERANCE
     )
     assert waits == [expected]
+
+
+_Z_ONLY_SCRIPT = r"""
+import sys
+sys.path.insert(0, sys.argv[1])
+import chelper
+ffi_main, ffi_lib = chelper.get_ffi()
+keep = []
+for i in range(400):
+    # Vary what lies in memory just before each trapq: walking past the
+    # tail sentinel reads it as a move, and only some contents stopped it.
+    keep.append(ffi_main.new("char[]", 8 + (i * 24) % 200))
+    tq = ffi_main.gc(ffi_lib.trapq_alloc(), ffi_lib.trapq_free)
+    keep.append(tq)
+    # A pure Z move: nothing a CoreXY X/Y stepper follows
+    ffi_lib.trapq_append(tq, 0.6, 0.075, 1.2583, 0.075, 0.0, 0.0, 60.0,
+                         0.0, 0.0, -1.0, 0.0, 15.0, 200.0, 0)
+    sk = ffi_main.gc(ffi_lib.corexy_stepper_alloc(b"+"), ffi_lib.free)
+    keep.append(sk)
+    ffi_lib.itersolve_set_trapq(sk, tq)
+    pg = ffi_main.gc(ffi_lib.phasegen_alloc(), ffi_lib.phasegen_free)
+    keep.append(pg)
+    ffi_lib.phasegen_setup(pg, sk, 1.0 / 20000, (1 << 32) / 0.8,
+                           float(1 << 21))
+    ffi_lib.phasegen_start(pg, 0.5, 0, 517 << 22, 0.0)
+    out = ffi_main.new("struct phasegen_seg[]", 64)
+    # Flush past the end of the last move while resting
+    assert ffi_lib.phasegen_generate(pg, 2.5, out, 64) == 0
+print("ok")
+"""
+
+
+def test_rest_past_last_move_that_does_not_drive_stepper():
+    # Found as a host hang on a U1: phase stepping enabled, then a Z-only
+    # move. The rest skip walked the move list past its tail sentinel and,
+    # depending on memory contents, around the list forever.
+    import subprocess
+
+    result = subprocess.run(
+        [sys.executable, "-c", _Z_ONLY_SCRIPT, os.path.join(ROOT, "klippy")],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "ok"
