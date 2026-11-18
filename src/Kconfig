@@ -195,7 +195,7 @@ config PHASE_STEPPING_AT32_DMA
     default y if WANT_PHASE_STEPPING && MACH_AT32F403A
 config PHASE_STEPPING_FREQ
     int
-    default 10000 if WANT_PHASE_STEPPING
+    default 20000 if WANT_PHASE_STEPPING
     default 0
 
 # The HAVE_x options allow boards to disable support for some commands
